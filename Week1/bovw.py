@@ -27,7 +27,7 @@ class BOVW():
 
         self.detector_type = detector_type
         self.codebook_size = codebook_size
-        self.codebook_algo = MiniBatchKMeans(n_clusters=self.codebook_size, **codebook_kwargs)
+        self.codebook_algo = MiniBatchKMeans(n_clusters=self.codebook_size, n_init='auto', **codebook_kwargs)
 
         # Parameters for Dense SIFT
         self.dense = dense

@@ -1,4 +1,9 @@
+import os
+# Suppress joblib warning about physical cores
+os.environ['LOKY_MAX_CPU_COUNT'] = "4"
+
 from bovw import BOVW
+import wandb
 
 from typing import *
 from PIL import Image
@@ -24,6 +29,22 @@ def get_descriptors_directory(bovw: BOVW, base_dir: str = "./computed_descriptor
         config_name = f"{bovw.detector_type}_keypoints"
     
     return os.path.join(base_dir, config_name)
+
+
+def check_descriptors_exist(bovw: BOVW, base_dir: str = "./computed_descriptors") -> bool:
+    """
+    Checks if the descriptors for the given configuration already exist.
+    """
+    # Check both train and test splits
+    for split in ["train", "test"]:
+        specific_dir = os.path.join(get_descriptors_directory(bovw, base_dir), split)
+        labels_path = os.path.join(specific_dir, "labels.pkl")
+        
+        # If labels file doesn't exist, we assume descriptors need to be computed
+        if not os.path.exists(labels_path):
+            return False
+            
+    return True
 
 
 def process_dataset(dataset: List[Tuple[Type[Image.Image], int]], 
@@ -111,6 +132,10 @@ def cross_validation(classifier: Type[object], X, y, cv=5):
     print(f"CV Scores: {scores}")
     print(f"Mean Accuracy: {scores.mean():.4f}")
     print("---------------------------------------------")
+    
+    if wandb.run is not None:
+        wandb.log({"cv_mean_accuracy": scores.mean()})
+    
     return scores.mean()
 
 
@@ -142,6 +167,9 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
 
     train_acc = accuracy_score(y_true=train_labels, y_pred=classifier.predict(bovw_histograms))
     print(f"Accuracy on Phase [Train]: {train_acc:.4f}")
+    
+    if wandb.run is not None:
+        wandb.log({"train_accuracy": train_acc})
 
     return bovw, classifier
 
@@ -159,6 +187,9 @@ def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classif
     
     test_acc = accuracy_score(y_true=test_labels, y_pred=y_pred)
     print(f"Accuracy on Phase [Test]: {test_acc:.4f}")
+    
+    if wandb.run is not None:
+        wandb.log({"test_accuracy": test_acc})
 
 
 def Dataset(ImageFolder:str = "data/MIT_split/train", max_samples: int = None) -> List[Tuple[Type[Image.Image], int]]:
@@ -216,20 +247,55 @@ if __name__ == "__main__":
     DATA_PATH = "../data/MIT_split/"
 
     # --- Configuration ---
-    DETECTOR = "ORB"  # SIFT, ORB, AKAZE
+    DETECTOR = "AKAZE"  # SIFT, ORB, AKAZE
 
     DENSE = False
     STEP_SIZE = 8
     KEYPOINT_SIZE = 8 
     
-    # Subsampling for algorithm testing (set to None for full run)
-    MAX_SAMPLES_TRAIN = 100 # Quantity of images per label !!!! Not in total
-    MAX_SAMPLES_TEST = 10 # Same as train samples
+    # Subsampling for algorithm testing (set to None for full run) Only log to wandb if full run
+    MAX_SAMPLES_TRAIN = None #100 # Quantity of images per label !!!! Not in total
+    MAX_SAMPLES_TEST = None #10 # Same as train samples
     
-    # TODO: Change this in order to automatize the load from disk or not
-    LOAD_DESCRIPTORS = True 
+    # --- Auto-Detect Descriptors ---
+    # Create a temporary BOVW instance to check paths (parameters must match)
+    temp_bovw = BOVW(
+        detector_type=DETECTOR,
+        dense=DENSE,
+        step_size=STEP_SIZE,
+        keypoint_size=KEYPOINT_SIZE,
+        codebook_size=1024 # Dummy value, not used for path generation
+    )
+    
+    if check_descriptors_exist(temp_bovw):
+        print("Found existing descriptors. Loading from disk.")
+        LOAD_DESCRIPTORS = True
+    else:
+        print("Descriptors not found. Computing them.")
+        LOAD_DESCRIPTORS = False
 
     # ---------------------
+    
+    # Construct descriptive run name
+    run_name = f"{DETECTOR}_dense{DENSE}_step{STEP_SIZE}_size{KEYPOINT_SIZE}"
+
+    # Only log to WandB if we are running on the full dataset
+    if MAX_SAMPLES_TRAIN is None and MAX_SAMPLES_TEST is None:
+        wandb.init(
+            project="project-4-week1",
+            name=run_name,
+            config={
+                "detector": DETECTOR,
+                "dense": DENSE,
+                "step_size": STEP_SIZE,
+                "keypoint_size": KEYPOINT_SIZE,
+                "max_samples_train": MAX_SAMPLES_TRAIN,
+                "max_samples_test": MAX_SAMPLES_TEST,
+                "codebook_size": 1024
+            }
+        )
+    else:
+        print("Running in TEST mode (subsampled data). WandB logging is DISABLED.")
 
     print("Loading Dataset...")
     data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=None)

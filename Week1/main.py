@@ -10,6 +10,7 @@ import tqdm
 import os
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.metrics import accuracy_score
 
 
@@ -99,6 +100,20 @@ def extract_bovw_histograms(bovw: Type[BOVW], descriptors: Literal["N", "T", "d"
     return np.array([bovw._compute_codebook_descriptor(descriptors=descriptor, kmeans=bovw.codebook_algo) for descriptor in descriptors])
 
 
+def cross_validation(classifier: Type[object], X, y, cv=5):
+    """
+    Performs cross-validation and prints results.
+    """
+    print(f"--- Performing {cv}-Fold Cross-Validation ---")
+    # skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy')
+    
+    print(f"CV Scores: {scores}")
+    print(f"Mean Accuracy: {scores.mean():.4f}")
+    print("---------------------------------------------")
+    return scores.mean()
+
+
 def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True):
     
     # Get Descriptors
@@ -118,8 +133,13 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptors=train_descriptors) 
     
     print("Fitting the classifier...")
-    classifier = LogisticRegression(class_weight="balanced", max_iter=1000).fit(bovw_histograms, train_labels)
-    
+    classifier = LogisticRegression(class_weight="balanced", max_iter=1000)
+
+    # Cross Validation
+    cross_validation(classifier, bovw_histograms, train_labels, cv=5)
+
+    classifier.fit(bovw_histograms, train_labels)
+
     train_acc = accuracy_score(y_true=train_labels, y_pred=classifier.predict(bovw_histograms))
     print(f"Accuracy on Phase [Train]: {train_acc:.4f}")
 
@@ -196,10 +216,10 @@ if __name__ == "__main__":
     DATA_PATH = "../data/MIT_split/"
 
     # --- Configuration ---
-    DETECTOR = "SIFT"  # SIFT, ORB, AKAZE
+    DETECTOR = "ORB"  # SIFT, ORB, AKAZE
 
-    DENSE = True
-    STEP_SIZE = 4
+    DENSE = False
+    STEP_SIZE = 8
     KEYPOINT_SIZE = 8 
     
     # Subsampling for algorithm testing (set to None for full run)
@@ -207,13 +227,13 @@ if __name__ == "__main__":
     MAX_SAMPLES_TEST = 10 # Same as train samples
     
     # TODO: Change this in order to automatize the load from disk or not
-    LOAD_DESCRIPTORS = False 
+    LOAD_DESCRIPTORS = True 
 
     # ---------------------
 
     print("Loading Dataset...")
-    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=MAX_SAMPLES_TRAIN)
-    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=MAX_SAMPLES_TEST) 
+    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=None)
+    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=None) 
 
     if not data_train or not data_test:
         raise ValueError("Dataset empty. Check paths.")
@@ -224,7 +244,7 @@ if __name__ == "__main__":
         dense=DENSE,
         step_size=STEP_SIZE,
         keypoint_size=KEYPOINT_SIZE,
-        codebook_size=50
+        codebook_size=1024
     )
     
     # Train

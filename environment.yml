@@ -1,0 +1,12 @@
+name: env-c3
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - matplotlib
+  - numpy
+  - opencv
+  - pillow
+  - scikit-learn
+  - tqdm
+  - wandb

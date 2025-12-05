@@ -13,6 +13,7 @@ import pickle
 import glob
 import tqdm
 import os
+import gc
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score, StratifiedKFold
@@ -53,7 +54,7 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
                     load_from_disk: bool = True,
                     descriptors_root: str = "./computed_descriptors") -> Tuple[List[np.ndarray], List[int]]:
     """
-    Extracts features or loads them from disk.
+    Extracts features and/or loads them from disk.
     """
     
     specific_dir = os.path.join(get_descriptors_directory(bovw, descriptors_root), split_name)
@@ -64,28 +65,8 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
     all_descriptors = []
     all_labels = []
 
-    if load_from_disk:
-        print(f"[{split_name}] Loading descriptors from disk: {specific_dir}")
-        
-        # Load Labels
-        with open(labels_path, 'rb') as f:
-            all_labels = pickle.load(f)
-            
-        # Load Descriptors
-        # Sort based on index in filename: desc_0.pkl, desc_1.pkl...
-        desc_paths = glob.glob(os.path.join(specific_dir, "desc_*.pkl"))
-        desc_files = sorted(desc_paths, key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
-        
-        # Verify length match
-        if len(desc_files) != len(all_labels):
-            raise ValueError(f"Mismatch in files! Found {len(desc_files)} descriptor files but {len(all_labels)} labels.")
-
-        for fpath in tqdm.tqdm(desc_files, desc=f"Loading {split_name}"):
-            with open(fpath, 'rb') as f:
-                desc = pickle.load(f)
-                all_descriptors.append(desc)
-                
-    else:
+    # Logic: If we are not loading from disk, we compute. 
+    if not load_from_disk:
         print(f"[{split_name}] Computing descriptors... Saving to {specific_dir}")
         
         # Compute and Save
@@ -95,7 +76,7 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
             # Extract
             _, descriptors = bovw._extract_features(image=np.array(image))
             
-            # Save individual file
+            # Save individual descriptor
             desc_path = os.path.join(specific_dir, f"desc_{idx}.pkl")
             
             if descriptors is None:
@@ -103,22 +84,95 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
             
             with open(desc_path, 'wb') as f:
                 pickle.dump(descriptors, f)
-                
-            all_descriptors.append(descriptors)
+            
+            # Append label
             all_labels.append(label)
+
+            del descriptors
+            del image
+            if idx % 50 == 0: 
+                gc.collect()
             
         # Save labels at end
         with open(labels_path, 'wb') as f:
             pickle.dump(all_labels, f)
             
-    return all_descriptors, all_labels
+        # Clear dataset from memory if possible
+        # gc.collect() 
+        print(f"[{split_name}] Extraction complete. Descriptors saved to disk.")
 
 
-def extract_bovw_histograms(bovw: Type[BOVW], descriptors: Literal["N", "T", "d"]):
+    # Load Process
+    print(f"[{split_name}] Gathering file paths...")
+    # print(f"[{split_name}] Loading descriptors from disk: {specific_dir}")
+    
+    # Load Labels
+    with open(labels_path, 'rb') as f:
+        all_labels = pickle.load(f)
+        
+    # Load Descriptors
+    # Sort based on index in filename: desc_0.pkl, desc_1.pkl...
+    desc_paths = glob.glob(os.path.join(specific_dir, "desc_*.pkl"))
+    sorted_paths = sorted(desc_paths, key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
+    
+    if len(sorted_paths) != len(all_labels):
+        raise ValueError(f"Mismatch! {len(sorted_paths)} files vs {len(all_labels)} labels.")
+        
+    return sorted_paths, all_labels
+
+
+def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: int = 100):
     """
-    Converts list of raw descriptors into list of BoVW histograms.
+    Loads descriptors in small batches to fit the KMeans codebook without crashing RAM.
     """
-    return np.array([bovw._compute_codebook_descriptor(descriptors=descriptor, kmeans=bovw.codebook_algo) for descriptor in descriptors])
+    valid_batch = []
+    
+    print(f"Fitting Codebook in batches of {batch_size}...")
+    
+    for i, path in enumerate(tqdm.tqdm(descriptor_paths, desc="Fitting Codebook")):
+        try:
+            with open(path, 'rb') as f:
+                desc = pickle.load(f)
+            
+            # Only add if it has descriptors
+            if desc is not None and len(desc) > 0:
+                valid_batch.append(desc)
+        except Exception as e:
+            print(f"Error loading {path}: {e}")
+            continue
+
+        # If batch is full, update codebook and clear memory
+        if len(valid_batch) >= batch_size:
+            bovw._update_fit_codebook(descriptors=valid_batch)
+            valid_batch = [] # Reset list
+            gc.collect()     # Force memory release
+
+    # Process remaining items in the last batch
+    if len(valid_batch) > 0:
+        bovw._update_fit_codebook(descriptors=valid_batch)
+        del valid_batch
+        gc.collect()
+
+
+def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T", "d"]):
+    """
+    Loads one descriptor file at a time, computes the histogram, and discards raw data.
+    """
+    histograms = []
+    
+    for path in tqdm.tqdm(descriptor_paths, desc="Computing BoVW Histograms"):
+        # Load ONE file
+        with open(path, 'rb') as f:
+            desc = pickle.load(f)
+        
+        # Compute histogram (returns a small 1D array, e.g., size 1024)
+        hist = bovw._compute_codebook_descriptor(descriptors=desc, kmeans=bovw.codebook_algo)
+        histograms.append(hist)
+        
+        # Delete raw descriptor immediately
+        del desc
+    
+    return np.array(histograms)
 
 
 def cross_validation(classifier: Type[object], X, y, cv=5):
@@ -143,19 +197,14 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     
     # Get Descriptors
     print("Processing Train Data...")
-    train_descriptors, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
+    train_paths, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
     
-    # Filter valid descriptors for fitting Codebook
-    valid_descriptors_for_fitting = [d for d in train_descriptors if d is not None and len(d) > 0]
-    
-    if len(valid_descriptors_for_fitting) == 0:
-        raise ValueError("No valid descriptors found in training set to fit the codebook.")
-            
-    print(f"Fitting codebook with {len(valid_descriptors_for_fitting)} valid images...")
-    bovw._update_fit_codebook(descriptors=valid_descriptors_for_fitting)
+    # Fit codebook by batches (RAM saving)
+    fit_codebook_batched(bovw, train_paths, batch_size=500)
+    # bovw._update_fit_codebook(descriptors=valid_descriptors_for_fitting)
 
     print("Computing BoVW histograms [Train]...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptors=train_descriptors) 
+    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths) 
     
     print("Fitting the classifier...")
     classifier = LogisticRegression(class_weight="balanced", max_iter=1000)
@@ -177,10 +226,10 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
 def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classifier: Type[object], load_descriptors: bool = True):
     
     print("Processing Test Data...")
-    test_descriptors, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
+    test_paths, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
     
     print("Computing BoVW histograms (Test)...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptors=test_descriptors)
+    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=test_paths)
     
     print("Predicting values...")
     y_pred = classifier.predict(bovw_histograms)

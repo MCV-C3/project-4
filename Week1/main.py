@@ -16,6 +16,8 @@ import os
 import gc
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.metrics.pairwise import additive_chi2_kernel
 from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.metrics import accuracy_score
 
@@ -204,7 +206,7 @@ def cross_validation(classifier: Type[object], X, y, cv=5):
     """
     print(f"--- Performing {cv}-Fold Cross-Validation ---")
     # skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy')
+    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy', verbose=1, n_jobs=-1) 
     
     print(f"CV Scores: {scores}")
     print(f"Mean Accuracy: {scores.mean():.4f}")
@@ -216,7 +218,36 @@ def cross_validation(classifier: Type[object], X, y, cv=5):
     return scores.mean()
 
 
-def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True, spatial_pyramid: bool = False):
+def histogram_intersection_kernel(X, Y):
+    """
+    Compute the histogram intersection kernel between X and Y.
+    K(x, y) = sum(min(xi, yi))
+    """
+    # Not the most efficient way, but it does not break the RAM
+    K = np.zeros((X.shape[0], Y.shape[0]))
+    for i in range(X.shape[0]):
+        K[i, :] = np.sum(np.minimum(X[i], Y), axis=1)
+    
+    return K
+
+
+def get_classifier(classifier_name: str, **kwargs) -> object:
+    """
+    Factory to get the classifier based on name.
+    """
+    if classifier_name == "LogisticRegression":
+        return LogisticRegression(class_weight="balanced", max_iter=1000, **kwargs)
+    elif classifier_name == "SVM-Linear":
+        return SVC(kernel='linear', class_weight='balanced', probability=True, **kwargs)
+    elif classifier_name == "SVM-RBF":
+        return SVC(kernel='rbf', class_weight='balanced', probability=True, **kwargs)
+    elif classifier_name == "SVM-HistogramIntersection":
+        return SVC(kernel=histogram_intersection_kernel, class_weight='balanced', probability=True, **kwargs)
+    else:
+        raise ValueError(f"Unknown classifier: {classifier_name}")
+
+
+def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True, spatial_pyramid: bool = False, classifier_kwargs: dict = {}):
     
     # Get Descriptors
     print("Processing Train Data...")
@@ -229,8 +260,8 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     print("Computing BoVW histograms [Train]...")
     bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=spatial_pyramid) 
     
-    print("Fitting the classifier...")
-    classifier = LogisticRegression(class_weight="balanced", max_iter=1000)
+    print(f"Fitting the classifier: {bovw.classifier_name}...")
+    classifier = get_classifier(bovw.classifier_name, **classifier_kwargs)
 
     # Cross Validation
     cross_validation(classifier, bovw_histograms, train_labels, cv=5)
@@ -321,12 +352,18 @@ if __name__ == "__main__":
     # --- Configuration ---
     DETECTOR = "SIFT"  # SIFT, ORB, AKAZE
 
+    CODEBOOK_SIZE = 1024
+
     SPATIAL_PYRAMID = False
     LEVELS = [1,2] # Can be None
 
     DENSE = False
     STEP_SIZE = 8
     KEYPOINT_SIZE = 8 
+    
+    CLASSIFIER = "SVM-Linear" # Options: "LogisticRegression", "SVM-Linear", "SVM-RBF", "SVM-HistogramIntersection" 
+    C_PARAM = 1.0 # Usual values to try: 0.1, 1.0, 10.0, 100.0
+    GAMMA_PARAM = 'scale' # Only for SVM-RBF. Can be 'scale', 'auto' or float
     
     # Subsampling for algorithm testing (set to None for full run) Only log to wandb if full run
     MAX_SAMPLES_TRAIN = None #100 # Quantity of images per label !!!! Not in total
@@ -339,7 +376,7 @@ if __name__ == "__main__":
         dense=DENSE,
         step_size=STEP_SIZE,
         keypoint_size=KEYPOINT_SIZE,
-        codebook_size=1024 # Dummy value, not used for path generation
+        codebook_size=CODEBOOK_SIZE
     )
     
     if check_descriptors_exist(temp_bovw):
@@ -352,7 +389,12 @@ if __name__ == "__main__":
     # ---------------------
     
     # Construct descriptive run name
-    run_name = f"{DETECTOR}_dense{DENSE}_step{STEP_SIZE}_size{KEYPOINT_SIZE}"
+    run_name = f"{DETECTOR}_dense{DENSE}_k{CODEBOOK_SIZE}_pyramid{SPATIAL_PYRAMID}_{CLASSIFIER}_C{C_PARAM}"
+    if CLASSIFIER == "SVM-RBF":
+        run_name += f"_gamma{GAMMA_PARAM}"
+        
+    if DENSE:
+        run_name += f"_step{STEP_SIZE}_size{KEYPOINT_SIZE}"
 
     # Only log to WandB if we are running on the full dataset
     if MAX_SAMPLES_TRAIN is None and MAX_SAMPLES_TEST is None:
@@ -368,16 +410,19 @@ if __name__ == "__main__":
                 "keypoint_size": KEYPOINT_SIZE,
                 "max_samples_train": MAX_SAMPLES_TRAIN,
                 "max_samples_test": MAX_SAMPLES_TEST,
-                "codebook_size": 1024
+                "codebook_size": CODEBOOK_SIZE,
+                "classifier": CLASSIFIER,
+                "C": C_PARAM,
+                "gamma": GAMMA_PARAM
             }
         )
     else:
         print("Running in TEST mode (subsampled data). WandB logging is DISABLED.")
 
     print("Loading Dataset...")
-    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=None)
-    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=None) 
-
+    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=MAX_SAMPLES_TRAIN)
+    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=MAX_SAMPLES_TEST) 
+    
     if not data_train or not data_test:
         raise ValueError("Dataset empty. Check paths.")
     
@@ -387,12 +432,30 @@ if __name__ == "__main__":
         dense=DENSE,
         step_size=STEP_SIZE,
         keypoint_size=KEYPOINT_SIZE,
-        codebook_size=1024,
+        codebook_size=CODEBOOK_SIZE,
         levels=LEVELS
     )
     
+    # Attach classifier name to BOVW object for convenience (hacky but works for passing info)
+    bovw.classifier_name = CLASSIFIER
+
+    import time
+    start_time = time.time()
+    
+    # Prepare classifier kwargs
+    classifier_kwargs = {"C": C_PARAM}
+    if CLASSIFIER == "SVM-RBF":
+        classifier_kwargs["gamma"] = GAMMA_PARAM
+
     # Train
-    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)
+    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID, classifier_kwargs=classifier_kwargs)
     
     # Test
     test(dataset=data_test, bovw=bovw, classifier=classifier, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)
+
+    end_time = time.time()
+    duration = end_time - start_time
+    print(f"Total Execution Time: {duration:.2f} seconds ({duration/60:.2f} minutes)")
+    
+    if wandb.run is not None:
+        wandb.log({"execution_time_seconds": duration, "execution_time_minutes": duration/60})

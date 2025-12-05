@@ -62,7 +62,7 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
     
     labels_path = os.path.join(specific_dir, "labels.pkl")
     
-    all_descriptors = []
+    # all_descriptors = []
     all_labels = []
 
     # Logic: If we are not loading from disk, we compute. 
@@ -74,16 +74,25 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
             image, label = dataset[idx]
             
             # Extract
-            _, descriptors = bovw._extract_features(image=np.array(image))
+            keypoints, descriptors = bovw._extract_features(image=np.array(image))
             
             # Save individual descriptor
             desc_path = os.path.join(specific_dir, f"desc_{idx}.pkl")
             
             if descriptors is None:
                 descriptors = np.array([]) 
+                keypoints = np.array([])
+            else:
+                kp_positions = np.array([kp.pt for kp in keypoints]) # Extract coordinates of keypoints
+
+            data_to_save ={
+                "descriptors": descriptors,
+                "keypoints": kp_positions,
+                "image_shape": image.size # 256x256
+            }
             
             with open(desc_path, 'wb') as f:
-                pickle.dump(descriptors, f)
+                pickle.dump(data_to_save, f)
             
             # Append label
             all_labels.append(label)
@@ -132,8 +141,13 @@ def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: in
     for i, path in enumerate(tqdm.tqdm(descriptor_paths, desc="Fitting Codebook")):
         try:
             with open(path, 'rb') as f:
-                desc = pickle.load(f)
-            
+                data = pickle.load(f)
+
+            if isinstance(data, dict):
+                desc = data["descriptors"]
+            else:
+                desc = data
+
             # Only add if it has descriptors
             if desc is not None and len(desc) > 0:
                 valid_batch.append(desc)
@@ -154,7 +168,7 @@ def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: in
         gc.collect()
 
 
-def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T", "d"]):
+def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T", "d"], spatial_pyramid = False):
     """
     Loads one descriptor file at a time, computes the histogram, and discards raw data.
     """
@@ -163,14 +177,23 @@ def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T"
     for path in tqdm.tqdm(descriptor_paths, desc="Computing BoVW Histograms"):
         # Load ONE file
         with open(path, 'rb') as f:
-            desc = pickle.load(f)
+            data = pickle.load(f)
+
+        desc = data["descriptors"]
+        keypoints = data["keypoints"]
+        shape = data["image_shape"]
         
         # Compute histogram (returns a small 1D array, e.g., size 1024)
-        hist = bovw._compute_codebook_descriptor(descriptors=desc, kmeans=bovw.codebook_algo)
+        if not spatial_pyramid:
+            hist = bovw._compute_codebook_descriptor(descriptors=desc, kmeans=bovw.codebook_algo)
+        else:
+            hist = bovw._compute_spatial_pyramid_descriptor(descriptors=desc, keypoints=keypoints, 
+                                                            image_shape=shape, kmeans=bovw.codebook_algo)
+    
         histograms.append(hist)
-        
+
         # Delete raw descriptor immediately
-        del desc
+        del data, desc, keypoints
     
     return np.array(histograms)
 
@@ -193,7 +216,7 @@ def cross_validation(classifier: Type[object], X, y, cv=5):
     return scores.mean()
 
 
-def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True):
+def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True, spatial_pyramid: bool = False):
     
     # Get Descriptors
     print("Processing Train Data...")
@@ -204,7 +227,7 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     # bovw._update_fit_codebook(descriptors=valid_descriptors_for_fitting)
 
     print("Computing BoVW histograms [Train]...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths) 
+    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=spatial_pyramid) 
     
     print("Fitting the classifier...")
     classifier = LogisticRegression(class_weight="balanced", max_iter=1000)
@@ -223,13 +246,13 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     return bovw, classifier
 
     
-def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classifier: Type[object], load_descriptors: bool = True):
+def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classifier: Type[object], load_descriptors: bool = True, spatial_pyramid: bool = False):
     
     print("Processing Test Data...")
     test_paths, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
     
     print("Computing BoVW histograms (Test)...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=test_paths)
+    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=test_paths, spatial_pyramid=spatial_pyramid)
     
     print("Predicting values...")
     y_pred = classifier.predict(bovw_histograms)
@@ -296,7 +319,10 @@ if __name__ == "__main__":
     DATA_PATH = "../data/MIT_split/"
 
     # --- Configuration ---
-    DETECTOR = "AKAZE"  # SIFT, ORB, AKAZE
+    DETECTOR = "SIFT"  # SIFT, ORB, AKAZE
+
+    SPATIAL_PYRAMID = False
+    LEVELS = [1,2] # Can be None
 
     DENSE = False
     STEP_SIZE = 8
@@ -335,6 +361,8 @@ if __name__ == "__main__":
             name=run_name,
             config={
                 "detector": DETECTOR,
+                "spatial_pyramid": SPATIAL_PYRAMID,
+                "levels": LEVELS,
                 "dense": DENSE,
                 "step_size": STEP_SIZE,
                 "keypoint_size": KEYPOINT_SIZE,
@@ -359,11 +387,12 @@ if __name__ == "__main__":
         dense=DENSE,
         step_size=STEP_SIZE,
         keypoint_size=KEYPOINT_SIZE,
-        codebook_size=1024
+        codebook_size=1024,
+        levels=LEVELS
     )
     
     # Train
-    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS)
+    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)
     
     # Test
-    test(dataset=data_test, bovw=bovw, classifier=classifier, load_descriptors=LOAD_DESCRIPTORS)
+    test(dataset=data_test, bovw=bovw, classifier=classifier, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)

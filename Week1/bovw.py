@@ -11,7 +11,7 @@ from typing import *
 class BOVW():
     
     def __init__(self, detector_type="AKAZE", dense:bool=False, step_size:int=8, keypoint_size:int=8,
-                codebook_size:int=50, detector_kwargs:dict={}, codebook_kwargs:dict={}):
+                codebook_size:int=50, levels:list=[1,2], detector_kwargs:dict={}, codebook_kwargs:dict={}):
 
         if dense and detector_type != 'SIFT':
             raise ValueError("Dense sampling is currently only supported for SIFT.")
@@ -25,6 +25,7 @@ class BOVW():
         else:
             raise ValueError("Detector type must be 'SIFT', 'SURF', or 'ORB'")
 
+        self.levels = levels
         self.detector_type = detector_type
         self.codebook_size = codebook_size
         self.codebook_algo = MiniBatchKMeans(n_clusters=self.codebook_size, n_init='auto', **codebook_kwargs)
@@ -96,6 +97,66 @@ class BOVW():
         
         return codebook_descriptor       
     
+
+    def _compute_spatial_pyramid_descriptor(self, descriptors: np.ndarray, keypoints: np.ndarray, image_shape: Tuple[int, int], kmeans: Type[KMeans]) -> np.ndarray:
+        """
+        Computes Spatial Pyramids histogram.
+        """
+        if descriptors is None or len(descriptors) == 0:
+            # Return zero vector of correct size
+            total_bins = sum([l*l for l in self.levels]) * self.codebook_size
+            return np.zeros(total_bins)
+
+        W, H = image_shape
+        
+        # Prediction of visual words for ALL descriptors first
+        visual_words = kmeans.predict(descriptors)
+        
+        pyramid_histogram = []
+
+        # Levels iteration
+        for level in self.levels:
+            n_cols = level
+            n_rows = level
+            
+            w_step = W / n_cols
+            h_step = H / n_rows
+
+            # Iterate through the grid cells
+            for r in range(n_rows):
+                for c in range(n_cols):
+                    # Define boundaries of the cell
+                    x_min = c * w_step
+                    x_max = (c + 1) * w_step
+                    y_min = r * h_step
+                    y_max = (r + 1) * h_step
+
+                    # Find keypoints inside this cell
+                    in_x = (keypoints[:, 0] >= x_min) & (keypoints[:, 0] < x_max)
+                    in_y = (keypoints[:, 1] >= y_min) & (keypoints[:, 1] < y_max)
+                    in_cell_indices = np.where(in_x & in_y)[0]
+
+                    # Create Histogram for this cell
+                    hist = np.zeros(self.codebook_size)
+                    
+                    if len(in_cell_indices) > 0:
+                        cell_words = visual_words[in_cell_indices]
+                        for w_idx in cell_words:
+                            hist[w_idx] += 1
+                    
+                    # TODO: Normalization here helps??
+
+                    pyramid_histogram.extend(hist)
+
+        pyramid_histogram = np.array(pyramid_histogram)
+
+        # Normalization of concatenated histogram
+        norm = np.linalg.norm(pyramid_histogram)
+        if norm > 0:
+            pyramid_histogram /= norm
+            
+        return pyramid_histogram
+
 
 def visualize_bow_histogram(histogram, image_index, output_folder="./test_example.jpg"):
     """

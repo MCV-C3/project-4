@@ -1,6 +1,6 @@
 __pycache__
-data
-computed_descriptors
+data/
+computed_descriptors*/
 wandb
 *.txt
 .vscode

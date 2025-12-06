@@ -1,0 +1,74 @@
+[
+    {
+        "name": "SIFT (N=500)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "SIFT",
+            "detector_kwargs": {"nfeatures": 500},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [1],
+            
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "ORB (N=500)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "ORB",
+            "detector_kwargs": {"nfeatures": 500},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [1],
+            
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "AKAZE (Default)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "AKAZE",
+            "detector_kwargs": {},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [1],
+            
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    }
+]

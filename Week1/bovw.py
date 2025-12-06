@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import os
 import glob
@@ -11,7 +12,7 @@ from typing import *
 class BOVW():
     
     def __init__(self, detector_type="AKAZE", dense:bool=False, step_size:int=8, keypoint_size:int=8,
-                codebook_size:int=50, levels:list=[1,2], detector_kwargs:dict={}, codebook_kwargs:dict={}):
+                codebook_size:int=50, levels:list=[1,2], pca_components:int=None, detector_kwargs:dict={}, codebook_kwargs:dict={}):
 
         if dense and detector_type != 'SIFT':
             raise ValueError("Dense sampling is currently only supported for SIFT.")
@@ -34,8 +35,33 @@ class BOVW():
         self.dense = dense
         self.step_size = step_size
         self.keypoint_size = keypoint_size
+        
+        # PCA
+        self.pca_components = pca_components
+        self.pca = None
+        if self.pca_components is not None:
+            self.pca = PCA(n_components=self.pca_components)
 
-               
+
+    def fit_pca(self, descriptors: List[np.ndarray]):
+        """
+        Fits PCA on a subset of descriptors.
+        """
+        if self.pca is None:
+            return
+            
+        print(f"Fitting PCA with {self.pca_components} components...")
+        # Filter valid
+        valid = [d for d in descriptors if d is not None and len(d) > 0]
+        if not valid:
+            print("Warning: No valid descriptors for PCA fitting.")
+            return
+
+        all_desc = np.vstack(valid)
+        self.pca.fit(all_desc)
+        print(f"PCA Fitted. Explained Variance Ratio: {np.sum(self.pca.explained_variance_ratio_):.2f}")
+
+
     ## Modify this function in order to be able to create a dense sift
     def _extract_features(self, image: Literal["H", "W", "C"]) -> Tuple:
         """
@@ -73,9 +99,16 @@ class BOVW():
         # Filter out None descriptors (images with no features)
         valid_descriptors = [d for d in descriptors if d is not None and len(d) > 0]
         if not valid_descriptors:
-            raise ValueError("Error: No valid descriptors found. Cannot fit codebook.")
+            # raise ValueError("Error: No valid descriptors found. Cannot fit codebook.")
+            print("Warning: No valid descriptors in batch to fit codebook.")
+            return self.codebook_algo, self.codebook_algo.cluster_centers_ if hasattr(self.codebook_algo, 'cluster_centers_') else None
         
-        all_descriptors = np.vstack(descriptors)
+        all_descriptors = np.vstack(valid_descriptors)
+        
+        # Apply PCA if enabled
+        if self.pca is not None:
+            all_descriptors = self.pca.transform(all_descriptors)
+
         self.codebook_algo = self.codebook_algo.partial_fit(X=all_descriptors)
 
         return self.codebook_algo, self.codebook_algo.cluster_centers_
@@ -85,6 +118,10 @@ class BOVW():
         if descriptors is None or len(descriptors) == 0:
             return np.zeros(kmeans.n_clusters)
         
+        # Apply PCA
+        if self.pca is not None:
+            descriptors = self.pca.transform(descriptors)
+
         visual_words = kmeans.predict(descriptors)
         
         # Create a histogram of visual words
@@ -104,10 +141,16 @@ class BOVW():
         """
         if descriptors is None or len(descriptors) == 0:
             # Return zero vector of correct size
+            # IMPORTANT: This assumes levels are handled correctly outside or hardcoded
+            # If we call this, self.levels should be set.
             total_bins = sum([l*l for l in self.levels]) * self.codebook_size
             return np.zeros(total_bins)
 
         W, H = image_shape
+        
+        # Apply PCA
+        if self.pca is not None:
+            descriptors = self.pca.transform(descriptors)
         
         # Prediction of visual words for ALL descriptors first
         visual_words = kmeans.predict(descriptors)
@@ -187,4 +230,3 @@ def visualize_bow_histogram(histogram, image_index, output_folder="./test_exampl
     plt.close()
 
     print(f"Plot saved to: {plot_path}")
-

@@ -44,6 +44,9 @@ def run_sweep():
     # 5. Spatial Pyramid
     pyramid_options = [False, True]
     
+    # 6. PCA Components
+    pca_options = [None, 64] # None = No PCA
+
     results = []
     
     # --- Generate Combinations ---
@@ -60,61 +63,68 @@ def run_sweep():
         for dense in dense_options:
             
             for pyramid in pyramid_options:
+                
+                for pca_val in pca_options:
 
-                for classifier in classifiers:
-                    # Hardcoded skip for existing results
-                    if detector == "SIFT" and dense is False and pyramid is False and classifier in ["LogisticRegression", "SVM-Linear"]:
-                        print(f"Skipping {detector} Dense={dense} Pyramid={pyramid} {classifier} (Hardcoded skip)")
-                        continue
-                    
-                    # Determine Gamma options
-                    current_gammas = gamma_params if classifier == "SVM-RBF" else ['scale'] 
-                    
-                    for c_val in c_params:
-                        for gamma_val in current_gammas:
-                            
-                            print(f"\n=== Running Sweep: Det={detector}, Dense={dense}, Pyramid={pyramid}, Clf={classifier}, C={c_val}, Gamma={gamma_val} ===")
-                            
-                            try:
-                                # Run Experiment
-                                metrics = run_experiment(
-                                    detector=detector,
-                                    dense=dense,
-                                    classifier=classifier,
-                                    c_param=c_val,
-                                    gamma_param=gamma_val,
-                                    codebook_size=1024, # Fixed for now
-                                    spatial_pyramid=pyramid,
-                                    use_wandb=True # Enable WandB for full run
-                                )
-                                # Note: pass use_wandb=True if you want to log every run
+                    for classifier in classifiers:
+                        # Hardcoded skip for existing results
+                        # We only skip if pca is None, because previous runs didn't have PCA
+                        if detector == "SIFT" and dense is False and pyramid is False and pca_val is None and classifier in ["LogisticRegression", "SVM-Linear"]:
+                            print(f"Skipping {detector} Dense={dense} Pyramid={pyramid} PCA={pca_val} {classifier} (Hardcoded skip)")
+                            continue
+                        
+                        # Determine Gamma options
+                        current_gammas = gamma_params if classifier == "SVM-RBF" else ['scale'] 
+                        
+                        for c_val in c_params:
+                            for gamma_val in current_gammas:
                                 
-                                # Append extra info
-                                metrics["spatial_pyramid"] = pyramid
-                                metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                results.append(metrics)
-                            
-                            except Exception as e:
-                                import traceback
-                                traceback.print_exc()
-                                print(f"!!! Error in run: {e}")
-                                # Log failure
-                                results.append({
-                                    "detector": detector,
-                                    "dense": dense,
-                                    "classifier": classifier,
-                                    "C": c_val,
-                                    "gamma": gamma_val,
-                                    "test_accuracy": 0.0,
-                                    "train_accuracy": 0.0,
-                                    "cv_accuracy": 0.0,
-                                    "time": 0.0,
-                                    "error": str(e)
-                                })
-
-                        # Save intermediate results in case of crash
-                        df = pd.DataFrame(results)
-                        df.to_csv("sweep_results.csv", index=False)
+                                print(f"\n=== Running Sweep: Det={detector}, Dense={dense}, Pyramid={pyramid}, PCA={pca_val}, Clf={classifier}, C={c_val}, Gamma={gamma_val} ===")
+                                
+                                try:
+                                    # Run Experiment
+                                    metrics = run_experiment(
+                                        detector=detector,
+                                        dense=dense,
+                                        classifier=classifier,
+                                        c_param=c_val,
+                                        gamma_param=gamma_val,
+                                        codebook_size=1024, # Fixed for now
+                                        spatial_pyramid=pyramid,
+                                        pca_components=pca_val,
+                                        use_wandb=True # Enable WandB for full run
+                                    )
+                                    # Note: pass use_wandb=True if you want to log every run
+                                    
+                                    # Append extra info
+                                    metrics["spatial_pyramid"] = pyramid
+                                    metrics["pca_components"] = pca_val
+                                    metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    results.append(metrics)
+                                    
+                                except Exception as e:
+                                    import traceback
+                                    traceback.print_exc()
+                                    print(f"!!! Error in run: {e}")
+                                    # Log failure
+                                    results.append({
+                                        "detector": detector,
+                                        "dense": dense,
+                                        "classifier": classifier,
+                                        "C": c_val,
+                                        "gamma": gamma_val,
+                                        "spatial_pyramid": pyramid,
+                                        "pca_components": pca_val,
+                                        "test_accuracy": 0.0,
+                                        "train_accuracy": 0.0,
+                                        "cv_accuracy": 0.0,
+                                        "time": 0.0,
+                                        "error": str(e)
+                                    })
+        
+                                # Save intermediate results in case of crash
+                                df = pd.DataFrame(results)
+                                df.to_csv("sweep_results.csv", index=False)
 
     # --- Save Final Results ---
     df_final = pd.DataFrame(results)

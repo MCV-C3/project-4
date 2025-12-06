@@ -1,3 +1,21 @@
+import sys
+from unittest.mock import MagicMock
+
+# MOCK THREADPOOLCTL to avoid AttributeError and ctypes crashes
+# The environment seems to have a broken threadpoolctl/OpenBLAS interaction
+mock_tpc = MagicMock()
+mock_tpc.__version__ = "3.0.0"
+class MockLimits:
+    def __init__(self, *args, **kwargs): pass
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def register(self, *args): pass
+    def unregister(self, *args): pass
+    def get_original_limits(self): return {}
+mock_tpc.threadpool_limits = MockLimits
+mock_tpc.threadpool_info = lambda: []
+sys.modules['threadpoolctl'] = mock_tpc
+
 import os
 # Suppress joblib warning about physical cores
 os.environ['LOKY_MAX_CPU_COUNT'] = "4"
@@ -247,12 +265,50 @@ def get_classifier(classifier_name: str, **kwargs) -> object:
         raise ValueError(f"Unknown classifier: {classifier_name}")
 
 
+
 def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True, spatial_pyramid: bool = False, classifier_kwargs: dict = {}):
     
     # Get Descriptors
     print("Processing Train Data...")
     train_paths, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
     
+    # --- PCA Training ---
+    if bovw.pca is not None:
+        print("Training PCA...")
+        # Load a random subset of descriptors for PCA
+        # We need enough samples. standard PCA needs all in memory.
+        # Let's load ~20k descriptors max (or more depending on RAM).
+        # Actually, let's just pick N random files and load them.
+        
+        pca_samples = []
+        max_pca_samples = 50000 
+        current_samples = 0
+        
+        import random
+        random.seed(42)
+        # Shuffle paths to get random subset
+        pca_paths = train_paths[:]
+        random.shuffle(pca_paths)
+        
+        for path in tqdm.tqdm(pca_paths, desc="Loading descriptors for PCA"):
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+            
+            desc = data["descriptors"] if isinstance(data, dict) else data
+            
+            if desc is not None and len(desc) > 0:
+                pca_samples.append(desc)
+                current_samples += len(desc)
+            
+            if current_samples >= max_pca_samples:
+                break
+        
+        bovw.fit_pca(pca_samples)
+        # Release memory
+        del pca_samples
+        gc.collect()
+    # --------------------
+
     # Fit codebook by batches (RAM saving)
     fit_codebook_batched(bovw, train_paths, batch_size=500)
     # bovw._update_fit_codebook(descriptors=valid_descriptors_for_fitting)
@@ -356,6 +412,7 @@ def run_experiment(
     classifier: str = "SVM-Linear",
     c_param: float = 1.0,
     gamma_param: Union[str, float] = 'scale',
+    pca_components: Optional[int] = None,
     max_samples_train: Optional[int] = None,
     max_samples_test: Optional[int] = None,
     data_path: str = "../data/MIT_split/",
@@ -389,6 +446,9 @@ def run_experiment(
         
     if dense:
         run_name += f"_step{step_size}_size{keypoint_size}"
+        
+    if pca_components is not None:
+        run_name += f"_pca{pca_components}"
 
     # Verify data path exists
     if not os.path.exists(data_path):
@@ -413,7 +473,8 @@ def run_experiment(
                 "codebook_size": codebook_size,
                 "classifier": classifier,
                 "C": c_param,
-                "gamma": gamma_param
+                "gamma": gamma_param,
+                "pca_components": pca_components
             }
         )
     else:
@@ -434,7 +495,8 @@ def run_experiment(
         step_size=step_size,
         keypoint_size=keypoint_size,
         codebook_size=codebook_size,
-        levels=levels
+        levels=levels,
+        pca_components=pca_components
     )
     
     # Attach classifier name to BOVW object for convenience

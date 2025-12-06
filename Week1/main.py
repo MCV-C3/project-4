@@ -330,7 +330,7 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     train_paths, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
     
     # Fit codebook by batches (RAM saving)
-    fit_codebook_batched(bovw, train_paths, batch_size=500)
+    fit_codebook_batched(bovw, train_paths, batch_size=config["codebook_batch_size"])
 
     print("Computing BoVW histograms [Train]...")
     bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=config["spatial_pyramid"])
@@ -445,6 +445,8 @@ if __name__ == "__main__":
         "C": 1.0,
         "gamma": "scale",
 
+        "codebook_batch_size": 10000,
+        
         # Debug
         "max_samples_train": None,
         "max_samples_test": None

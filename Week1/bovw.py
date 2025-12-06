@@ -1,17 +1,16 @@
+import os
+from typing import *
+
 import cv2
 import numpy as np
-from sklearn.cluster import KMeans, MiniBatchKMeans
 import matplotlib.pyplot as plt
-import os
-import glob
+from sklearn.cluster import KMeans, MiniBatchKMeans
 
-
-from typing import *
 
 class BOVW():
     
-    def __init__(self, detector_type="AKAZE", dense:bool=False, step_size:int=8, keypoint_size:int=8,
-                codebook_size:int=50, levels:list=[1,2], detector_kwargs:dict={}, codebook_kwargs:dict={}):
+    def __init__(self, detector_type="AKAZE", dense:bool=False, step_size:int=8, scale:int=8, codebook_size:int=50, 
+                 levels:list=[1], random_state:int=42, detector_kwargs:dict={}, codebook_kwargs:dict={}):
 
         if dense and detector_type != 'SIFT':
             raise ValueError("Dense sampling is currently only supported for SIFT.")
@@ -25,15 +24,24 @@ class BOVW():
         else:
             raise ValueError("Detector type must be 'SIFT', 'SURF', or 'ORB'")
 
-        self.levels = levels
         self.detector_type = detector_type
+        self.detector_kwargs = detector_kwargs
+
+        # Codebook / KMeans parameters
         self.codebook_size = codebook_size
-        self.codebook_algo = MiniBatchKMeans(n_clusters=self.codebook_size, n_init='auto', **codebook_kwargs)
+        self.random_state = random_state
+        self.codebook_algo = MiniBatchKMeans(
+            n_clusters=self.codebook_size, n_init='auto', 
+            random_state=random_state, **codebook_kwargs
+        )
 
         # Parameters for Dense SIFT
         self.dense = dense
         self.step_size = step_size
-        self.keypoint_size = keypoint_size
+        self.scale = scale
+
+        # Spatial Pyramid levels
+        self.levels = levels
 
                
     ## Modify this function in order to be able to create a dense sift
@@ -54,7 +62,7 @@ class BOVW():
             # Creation of keypoints for each determinate step_size
             for y in range(0, h, self.step_size):
                 for x in range(0, w, self.step_size):
-                    kp = cv2.KeyPoint(float(x), float(y), float(self.keypoint_size))
+                    kp = cv2.KeyPoint(float(x), float(y), float(self.scale))
                     keypoints.append(kp)
             
             if not keypoints:
@@ -70,6 +78,9 @@ class BOVW():
     
     
     def _update_fit_codebook(self, descriptors: Literal["N", "T", "d"])-> Tuple[Type[MiniBatchKMeans],Literal["codebook_size", "d"]]:
+        """
+        Partially fits the KMeans algorithm with a batch of descriptors.
+        """
         # Filter out None descriptors (images with no features)
         valid_descriptors = [d for d in descriptors if d is not None and len(d) > 0]
         if not valid_descriptors:
@@ -82,6 +93,9 @@ class BOVW():
 
 
     def _compute_codebook_descriptor(self, descriptors: Literal["1 T d"], kmeans: Type[KMeans]) -> np.ndarray:
+        """
+        Computes a standard BoVW histogram (frequency of visual words).
+        """
         if descriptors is None or len(descriptors) == 0:
             return np.zeros(kmeans.n_clusters)
         
@@ -92,15 +106,19 @@ class BOVW():
         for label in visual_words:
             codebook_descriptor[label] += 1
         
-        # Normalize the histogram (optional)
-        codebook_descriptor = codebook_descriptor / np.linalg.norm(codebook_descriptor)
+        # Normalize the histogram 
+        norm = np.linalg.norm(codebook_descriptor)
+        if norm > 0:
+            codebook_descriptor /= norm
         
         return codebook_descriptor       
     
 
-    def _compute_spatial_pyramid_descriptor(self, descriptors: np.ndarray, keypoints: np.ndarray, image_shape: Tuple[int, int], kmeans: Type[KMeans]) -> np.ndarray:
+    def _compute_spatial_pyramid_descriptor(self, descriptors: np.ndarray, keypoints: np.ndarray, 
+                                            image_shape: Tuple[int, int], kmeans: Type[KMeans]) -> np.ndarray:
         """
-        Computes Spatial Pyramids histogram.
+        Computes the Spatial Pyramid Matching (SPM) histogram.
+        Concatenates histograms from different grid levels.
         """
         if descriptors is None or len(descriptors) == 0:
             # Return zero vector of correct size

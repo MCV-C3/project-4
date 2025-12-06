@@ -1,37 +1,50 @@
 import os
+import gc
+import glob
+import time
+import pickle
+from typing import *
+
 # Suppress joblib warning about physical cores
 os.environ['LOKY_MAX_CPU_COUNT'] = "4"
 
-from bovw import BOVW
-import wandb
-
-from typing import *
-from PIL import Image
-
 import numpy as np
-import pickle
-import glob
 import tqdm
-import os
-import gc
+from PIL import Image
+import wandb
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.metrics.pairwise import additive_chi2_kernel
-from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
+
+from bovw import BOVW
+
+
+# ==========================================
+# FILE SYSTEM & PATH HELPERS
+# ==========================================
 
 
 def get_descriptors_directory(bovw: BOVW, base_dir: str = "./computed_descriptors") -> str:
     """
     Constructs a unique folder name based on detector config.
     """
+
     if bovw.dense and bovw.detector_type == "SIFT":
-        config_name = f"{bovw.detector_type}_dense_step{bovw.step_size}_size{bovw.keypoint_size}"
+        config_name = f"{bovw.detector_type}_dense_step{bovw.step_size}_size{bovw.scale}"
     else:
         config_name = f"{bovw.detector_type}_keypoints"
     
-    return os.path.join(base_dir, config_name)
+    params_suffix = ""
+    if hasattr(bovw, 'detector_kwargs') and bovw.detector_kwargs:
+        if "nfeatures" in bovw.detector_kwargs:
+            params_suffix += f"_N{bovw.detector_kwargs['nfeatures']}"
+        if "threshold" in bovw.detector_kwargs:
+            params_suffix += f"_T{bovw.detector_kwargs['threshold']}"
+
+    full_name = config_name + params_suffix
+    return os.path.join(base_dir, full_name)
 
 
 def check_descriptors_exist(bovw: BOVW, base_dir: str = "./computed_descriptors") -> bool:
@@ -50,10 +63,55 @@ def check_descriptors_exist(bovw: BOVW, base_dir: str = "./computed_descriptors"
     return True
 
 
-def process_dataset(dataset: List[Tuple[Type[Image.Image], int]], 
-                    bovw: BOVW, 
-                    split_name: str,
-                    load_from_disk: bool = True,
+# ==========================================
+# DATASET LOADING
+# ==========================================
+
+
+def Dataset(ImageFolder:str = "data/MIT_split/train", max_samples: int = None) -> List[Tuple[Type[Image.Image], int]]:
+
+    """
+    Loads images from folder structure: ImageFolder/<cls label>/xxx.jpg
+    Returns list of (PIL Image, label_index).
+    """
+
+    if not os.path.exists(ImageFolder):
+        print(f"Error: Folder {ImageFolder} does not exist.")
+        return []
+
+    map_classes = {clsi: idx for idx, clsi  in enumerate(os.listdir(ImageFolder))}
+    dataset :List[Tuple] = []
+    total_images_loaded = 0
+
+    # Iteration for each class folder
+    for idx, cls_folder in enumerate(os.listdir(ImageFolder)):
+        images_per_class = 0
+        image_path = os.path.join(ImageFolder, cls_folder)
+        images = glob.glob(image_path + "/*.jpg")
+
+        # Add to dataset every image of the class folder
+        for img in images:
+            if max_samples is not None and images_per_class >= max_samples:
+                break
+            try:
+                img_pil = Image.open(img).convert("RGB")
+                dataset.append((img_pil, map_classes[cls_folder]))
+                images_per_class += 1
+            except Exception as e:
+                print(f"Error loading image {img}: {e}")
+
+        total_images_loaded += images_per_class
+
+    print(f"Loaded {len(dataset)} images from {ImageFolder}")
+    return dataset
+
+
+# ==========================================
+# FEATURE EXTRACTION & PROCESSING
+# ==========================================
+
+
+def process_dataset(dataset: List[Tuple[Type[Image.Image], int]], bovw: BOVW, split_name: str, load_from_disk: bool = True,
                     descriptors_root: str = "./computed_descriptors") -> Tuple[List[np.ndarray], List[int]]:
     """
     Extracts features and/or loads them from disk.
@@ -64,7 +122,6 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
     
     labels_path = os.path.join(specific_dir, "labels.pkl")
     
-    # all_descriptors = []
     all_labels = []
 
     # Logic: If we are not loading from disk, we compute. 
@@ -99,8 +156,7 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
             # Append label
             all_labels.append(label)
 
-            del descriptors
-            del image
+            del descriptors, image, data_to_save
             if idx % 50 == 0: 
                 gc.collect()
             
@@ -108,14 +164,11 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
         with open(labels_path, 'wb') as f:
             pickle.dump(all_labels, f)
             
-        # Clear dataset from memory if possible
-        # gc.collect() 
         print(f"[{split_name}] Extraction complete. Descriptors saved to disk.")
 
 
-    # Load Process
+    # Loading Process
     print(f"[{split_name}] Gathering file paths...")
-    # print(f"[{split_name}] Loading descriptors from disk: {specific_dir}")
     
     # Load Labels
     with open(labels_path, 'rb') as f:
@@ -132,7 +185,7 @@ def process_dataset(dataset: List[Tuple[Type[Image.Image], int]],
     return sorted_paths, all_labels
 
 
-def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: int = 100):
+def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: int = 500):
     """
     Loads descriptors in small batches to fit the KMeans codebook without crashing RAM.
     """
@@ -160,8 +213,8 @@ def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: in
         # If batch is full, update codebook and clear memory
         if len(valid_batch) >= batch_size:
             bovw._update_fit_codebook(descriptors=valid_batch)
-            valid_batch = [] # Reset list
-            gc.collect()     # Force memory release
+            valid_batch = []
+            gc.collect()
 
     # Process remaining items in the last batch
     if len(valid_batch) > 0:
@@ -185,13 +238,20 @@ def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T"
         keypoints = data["keypoints"]
         shape = data["image_shape"]
         
-        # Compute histogram (returns a small 1D array, e.g., size 1024)
+        # Compute histogram 
         if not spatial_pyramid:
-            hist = bovw._compute_codebook_descriptor(descriptors=desc, kmeans=bovw.codebook_algo)
+            hist = bovw._compute_codebook_descriptor(
+                descriptors=desc, 
+                kmeans=bovw.codebook_algo
+            )
         else:
-            hist = bovw._compute_spatial_pyramid_descriptor(descriptors=desc, keypoints=keypoints, 
-                                                            image_shape=shape, kmeans=bovw.codebook_algo)
-    
+            hist = bovw._compute_spatial_pyramid_descriptor(
+                descriptors=desc, 
+                keypoints=keypoints, 
+                image_shape=shape, 
+                kmeans=bovw.codebook_algo
+            )
+        
         histograms.append(hist)
 
         # Delete raw descriptor immediately
@@ -200,13 +260,18 @@ def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T"
     return np.array(histograms)
 
 
+# ==========================================
+# CLASSIFIERS & KERNELS
+# ==========================================
+
+
 def cross_validation(classifier: Type[object], X, y, cv=5):
     """
     Performs cross-validation and prints results.
     """
     print(f"--- Performing {cv}-Fold Cross-Validation ---")
     # skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy', verbose=1, n_jobs=-1) 
+    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy') 
     
     print(f"CV Scores: {scores}")
     print(f"Mean Accuracy: {scores.mean():.4f}")
@@ -231,23 +296,34 @@ def histogram_intersection_kernel(X, Y):
     return K
 
 
-def get_classifier(classifier_name: str, **kwargs) -> object:
-    """
-    Factory to get the classifier based on name.
-    """
-    if classifier_name == "LogisticRegression":
-        return LogisticRegression(class_weight="balanced", max_iter=1000, **kwargs)
-    elif classifier_name == "SVM-Linear":
-        return SVC(kernel='linear', class_weight='balanced', probability=True, **kwargs)
-    elif classifier_name == "SVM-RBF":
-        return SVC(kernel='rbf', class_weight='balanced', probability=True, **kwargs)
-    elif classifier_name == "SVM-HistogramIntersection":
-        return SVC(kernel=histogram_intersection_kernel, class_weight='balanced', probability=True, **kwargs)
+def get_classifier(name, config):
+    seed = config.get("seed", 42)
+    common_args = {"class_weight": "balanced", "random_state": seed}
+    
+    if name == "LogisticRegression":
+        return LogisticRegression(max_iter=1000, **common_args, C=config.get("C", 1.0))
+    
+    # SVM Args
+    svm_args = {**common_args, "probability": True, "C": config.get("C", 1.0)}
+    if config.get("gamma") is not None:
+        svm_args["gamma"] = config["gamma"]
+
+    if name == "SVM-Linear":
+        return SVC(kernel='linear', **svm_args)
+    elif name == "SVM-RBF":
+        return SVC(kernel='rbf', **svm_args)
+    elif name == "SVM-HistogramIntersection":
+        return SVC(kernel=histogram_intersection_kernel, **svm_args)
     else:
-        raise ValueError(f"Unknown classifier: {classifier_name}")
+        raise ValueError(f"Unknown classifier: {name}")
+    
+
+# ==========================================
+# TRAIN & TEST PIPELINES
+# ==========================================
 
 
-def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_descriptors: bool = True, spatial_pyramid: bool = False, classifier_kwargs: dict = {}):
+def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool = True):
     
     # Get Descriptors
     print("Processing Train Data...")
@@ -255,16 +331,17 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     
     # Fit codebook by batches (RAM saving)
     fit_codebook_batched(bovw, train_paths, batch_size=500)
-    # bovw._update_fit_codebook(descriptors=valid_descriptors_for_fitting)
 
     print("Computing BoVW histograms [Train]...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=spatial_pyramid) 
+    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=config["spatial_pyramid"])
     
-    print(f"Fitting the classifier: {bovw.classifier_name}...")
-    classifier = get_classifier(bovw.classifier_name, **classifier_kwargs)
+    print(f"Fitting the classifier: {config["classifier"]}...")
+    classifier = get_classifier(config["classifier"], config)
 
     # Cross Validation
-    cross_validation(classifier, bovw_histograms, train_labels, cv=5)
+    print("Performing Cross-Validation...")
+    scores = cross_val_score(classifier, bovw_histograms, train_labels, cv=5, n_jobs=-1)
+    print(f"CV Accuracy: {scores.mean():.4f} (+/- {scores.std():.4f})")
 
     classifier.fit(bovw_histograms, train_labels)
 
@@ -274,16 +351,16 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     if wandb.run is not None:
         wandb.log({"train_accuracy": train_acc})
 
-    return bovw, classifier
+    return bovw, classifier, train_acc
 
     
-def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classifier: Type[object], load_descriptors: bool = True, spatial_pyramid: bool = False):
+def test(dataset: List[Tuple], bovw: BOVW, classifier: object, config: dict, load_descriptors: bool = True):
     
     print("Processing Test Data...")
     test_paths, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
     
     print("Computing BoVW histograms (Test)...")
-    bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=test_paths, spatial_pyramid=spatial_pyramid)
+    bovw_histograms = extract_bovw_histograms(bovw, test_paths, spatial_pyramid=config["spatial_pyramid"])
     
     print("Predicting values...")
     y_pred = classifier.predict(bovw_histograms)
@@ -294,168 +371,96 @@ def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classif
     if wandb.run is not None:
         wandb.log({"test_accuracy": test_acc})
 
+    return test_acc
 
-def Dataset(ImageFolder:str = "data/MIT_split/train", max_samples: int = None) -> List[Tuple[Type[Image.Image], int]]:
 
+def run_experiment(config: dict):
     """
-    Simple dataset loader
-        
-    Expected Structure:
-        ImageFolder/<cls label>/xxx1.jpg
-        ImageFolder/<cls label>/xxx2.jpg
-        ...
-
-    Example:
-        ImageFolder/cat/123.jpg
-        ImageFolder/cat/nsdf3.jpg
-        ...
+    Orchestrates the data loading, setup, training, and testing based on config.
     """
-
-    if not os.path.exists(ImageFolder):
-        print(f"Error: Folder {ImageFolder} does not exist.")
-        return []
-
-    map_classes = {clsi: idx for idx, clsi  in enumerate(os.listdir(ImageFolder))}
-    dataset :List[Tuple] = []
-
-    total_images_loaded = 0
-
-    # Iteration for each class folder
-    for idx, cls_folder in enumerate(os.listdir(ImageFolder)):
-        images_per_class = 0
-
-        image_path = os.path.join(ImageFolder, cls_folder)
-        images = glob.glob(image_path + "/*.jpg")
-
-        # Add to dataset every image of the class folder
-        for img in images:
-            if max_samples is not None and images_per_class >= max_samples:
-                break
-
-            try:
-                img_pil = Image.open(img).convert("RGB")
-                dataset.append((img_pil, map_classes[cls_folder]))
-                images_per_class += 1
-            except Exception as e:
-                print(f"Error loading image {img}: {e}")
-
-        total_images_loaded += images_per_class
-
-    print(f"Loaded {len(dataset)} images from {ImageFolder}")
-    return dataset
-
-
-if __name__ == "__main__":
-
-    DATA_PATH = "../data/MIT_split/"
-
-    # --- Configuration ---
-    DETECTOR = "SIFT"  # SIFT, ORB, AKAZE
-
-    CODEBOOK_SIZE = 1024
-
-    SPATIAL_PYRAMID = False
-    LEVELS = [1,2] # Can be None
-
-    DENSE = False
-    STEP_SIZE = 8
-    KEYPOINT_SIZE = 8 
     
-    CLASSIFIER = "SVM-Linear" # Options: "LogisticRegression", "SVM-Linear", "SVM-RBF", "SVM-HistogramIntersection" 
-    C_PARAM = 1.0 # Usual values to try: 0.1, 1.0, 10.0, 100.0
-    GAMMA_PARAM = 'scale' # Only for SVM-RBF. Can be 'scale', 'auto' or float
-    
-    # Subsampling for algorithm testing (set to None for full run) Only log to wandb if full run
-    MAX_SAMPLES_TRAIN = None #100 # Quantity of images per label !!!! Not in total
-    MAX_SAMPLES_TEST = None #10 # Same as train samples
-    
-    # --- Auto-Detect Descriptors ---
-    # Create a temporary BOVW instance to check paths (parameters must match)
-    temp_bovw = BOVW(
-        detector_type=DETECTOR,
-        dense=DENSE,
-        step_size=STEP_SIZE,
-        keypoint_size=KEYPOINT_SIZE,
-        codebook_size=CODEBOOK_SIZE
-    )
-    
-    if check_descriptors_exist(temp_bovw):
-        print("Found existing descriptors. Loading from disk.")
-        LOAD_DESCRIPTORS = True
-    else:
-        print("Descriptors not found. Computing them.")
-        LOAD_DESCRIPTORS = False
-
-    # ---------------------
-    
-    # Construct descriptive run name
-    run_name = f"{DETECTOR}_dense{DENSE}_k{CODEBOOK_SIZE}_pyramid{SPATIAL_PYRAMID}_{CLASSIFIER}_C{C_PARAM}"
-    if CLASSIFIER == "SVM-RBF":
-        run_name += f"_gamma{GAMMA_PARAM}"
-        
-    if DENSE:
-        run_name += f"_step{STEP_SIZE}_size{KEYPOINT_SIZE}"
-
-    # Only log to WandB if we are running on the full dataset
-    if MAX_SAMPLES_TRAIN is None and MAX_SAMPLES_TEST is None:
-        wandb.init(
-            project="project-4-week1",
-            name=run_name,
-            config={
-                "detector": DETECTOR,
-                "spatial_pyramid": SPATIAL_PYRAMID,
-                "levels": LEVELS,
-                "dense": DENSE,
-                "step_size": STEP_SIZE,
-                "keypoint_size": KEYPOINT_SIZE,
-                "max_samples_train": MAX_SAMPLES_TRAIN,
-                "max_samples_test": MAX_SAMPLES_TEST,
-                "codebook_size": CODEBOOK_SIZE,
-                "classifier": CLASSIFIER,
-                "C": C_PARAM,
-                "gamma": GAMMA_PARAM
-            }
-        )
-    else:
-        print("Running in TEST mode (subsampled data). WandB logging is DISABLED.")
-
-    print("Loading Dataset...")
-    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=MAX_SAMPLES_TRAIN)
-    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=MAX_SAMPLES_TEST) 
+    # --- Pipeline Execution ---
+    DATA_PATH = config.get("data_path", "../data/MIT_split/")
+    data_train = Dataset(os.path.join(DATA_PATH, "train"), config.get("max_samples_train"))
+    data_test = Dataset(os.path.join(DATA_PATH, "test"), config.get("max_samples_test"))
     
     if not data_train or not data_test:
-        raise ValueError("Dataset empty. Check paths.")
-    
-    # Initialize BoVW
-    bovw = BOVW(
-        detector_type=DETECTOR,
-        dense=DENSE,
-        step_size=STEP_SIZE,
-        keypoint_size=KEYPOINT_SIZE,
-        codebook_size=CODEBOOK_SIZE,
-        levels=LEVELS
-    )
-    
-    # Attach classifier name to BOVW object for convenience (hacky but works for passing info)
-    bovw.classifier_name = CLASSIFIER
+        raise ValueError("Dataset empty.")
 
-    import time
-    start_time = time.time()
-    
-    # Prepare classifier kwargs
-    classifier_kwargs = {"C": C_PARAM}
-    if CLASSIFIER == "SVM-RBF":
-        classifier_kwargs["gamma"] = GAMMA_PARAM
+   # Initialize BoVW
+    bovw = BOVW(
+        detector_type=config["detector"],
+        dense=config["dense"],
+        step_size=config["step_size"],
+        scale=config["scale"],
+        codebook_size=config["codebook_size"],
+        levels=config["levels"],
+        detector_kwargs=config.get("detector_kwargs", {}),
+        random_state=config.get("seed", 42)
+    )
+
+    # Check Descriptors existence to decide on compute vs load
+    load_descriptors = False
+    if check_descriptors_exist(bovw):
+        print("Descriptors found on disk. Loading...")
+        load_descriptors = True
+    else:
+        print("Descriptors not found. Computing...")
 
     # Train
-    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID, classifier_kwargs=classifier_kwargs)
-    
-    # Test
-    test(dataset=data_test, bovw=bovw, classifier=classifier, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)
+    bovw, classifier, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
 
-    end_time = time.time()
-    duration = end_time - start_time
-    print(f"Total Execution Time: {duration:.2f} seconds ({duration/60:.2f} minutes)")
+    # Test
+    test_acc = test(data_test, bovw, classifier, config, load_descriptors=load_descriptors)
+
+    return train_acc, test_acc
+
+
+# ==========================================
+# MAIN EXECUTION
+# ==========================================
+
+if __name__ == "__main__":
     
-    if wandb.run is not None:
-        wandb.log({"execution_time_seconds": duration, "execution_time_minutes": duration/60})
+    # --- CONFIGURATION DICTIONARY ---
+    CONFIG = {
+        "data_path": "../data/MIT_split/",
+        "seed": 42,
+        
+        # Features
+        "detector": "SIFT",          # SIFT, ORB, AKAZE
+        "detector_kwargs": {"nfeatures": 500},
+        
+        "dense": False,
+        "step_size": 8,              # Only for Dense
+        "scale": 8,                  # Only for Dense
+        
+        # BoVW
+        "codebook_size": 1024,
+        "spatial_pyramid": False,
+        "levels": [1, 2],
+        
+        # Classifier
+        "classifier": "SVM-Linear",  # LogisticRegression, SVM-Linear, SVM-RBF
+        "C": 1.0,
+        "gamma": "scale",
+
+        # Debug
+        "max_samples_train": None,
+        "max_samples_test": None
+    }
+
+    # Generate Run Name
+    run_name = f"{CONFIG['detector']}_dense{CONFIG['dense']}_k{CONFIG['codebook_size']}_{CONFIG['classifier']}"
+    if CONFIG['dense']: run_name += f"_step{CONFIG['step_size']}"
+    
+    # Initialize WandB
+    if CONFIG["max_samples_train"] is None:
+        wandb.init(project="project-4-week1", name=run_name, config=CONFIG)
+    else:
+        print("Debug mode: WandB disabled.")
+
+    # RUN
+    start_time = time.time()
+    run_experiment(CONFIG)
+    print(f"Done in {time.time() - start_time:.2f}s")

@@ -10,3 +10,5 @@ dependencies:
   - scikit-learn
   - tqdm
   - wandb
+  - pandas
+  - seaborn

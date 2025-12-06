@@ -206,7 +206,7 @@ def cross_validation(classifier: Type[object], X, y, cv=5):
     """
     print(f"--- Performing {cv}-Fold Cross-Validation ---")
     # skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy', verbose=1, n_jobs=-1) 
+    scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy', verbose=1, n_jobs=1) 
     
     print(f"CV Scores: {scores}")
     print(f"Mean Accuracy: {scores.mean():.4f}")
@@ -264,7 +264,7 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     classifier = get_classifier(bovw.classifier_name, **classifier_kwargs)
 
     # Cross Validation
-    cross_validation(classifier, bovw_histograms, train_labels, cv=5)
+    cv_score = cross_validation(classifier, bovw_histograms, train_labels, cv=5)
 
     classifier.fit(bovw_histograms, train_labels)
 
@@ -274,7 +274,7 @@ def train(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], load_d
     if wandb.run is not None:
         wandb.log({"train_accuracy": train_acc})
 
-    return bovw, classifier
+    return bovw, classifier, train_acc, cv_score
 
     
 def test(dataset: List[Tuple[Type[Image.Image], int]], bovw: Type[BOVW], classifier: Type[object], load_descriptors: bool = True, spatial_pyramid: bool = False):
@@ -345,117 +345,167 @@ def Dataset(ImageFolder:str = "data/MIT_split/train", max_samples: int = None) -
     return dataset
 
 
-if __name__ == "__main__":
+def run_experiment(
+    detector: str = "SIFT",
+    dense: bool = False,
+    codebook_size: int = 1024,
+    spatial_pyramid: bool = False,
+    levels: List[int] = [1, 2],
+    step_size: int = 8,
+    keypoint_size: int = 8,
+    classifier: str = "SVM-Linear",
+    c_param: float = 1.0,
+    gamma_param: Union[str, float] = 'scale',
+    max_samples_train: Optional[int] = None,
+    max_samples_test: Optional[int] = None,
+    data_path: str = "../data/MIT_split/",
+    wandb_project: str = "project-4-week1",
+    use_wandb: bool = True
+) -> Dict[str, Any]:
 
-    DATA_PATH = "../data/MIT_split/"
-
-    # --- Configuration ---
-    DETECTOR = "SIFT"  # SIFT, ORB, AKAZE
-
-    CODEBOOK_SIZE = 1024
-
-    SPATIAL_PYRAMID = False
-    LEVELS = [1,2] # Can be None
-
-    DENSE = False
-    STEP_SIZE = 8
-    KEYPOINT_SIZE = 8 
-    
-    CLASSIFIER = "SVM-Linear" # Options: "LogisticRegression", "SVM-Linear", "SVM-RBF", "SVM-HistogramIntersection" 
-    C_PARAM = 1.0 # Usual values to try: 0.1, 1.0, 10.0, 100.0
-    GAMMA_PARAM = 'scale' # Only for SVM-RBF. Can be 'scale', 'auto' or float
-    
-    # Subsampling for algorithm testing (set to None for full run) Only log to wandb if full run
-    MAX_SAMPLES_TRAIN = None #100 # Quantity of images per label !!!! Not in total
-    MAX_SAMPLES_TEST = None #10 # Same as train samples
-    
     # --- Auto-Detect Descriptors ---
     # Create a temporary BOVW instance to check paths (parameters must match)
     temp_bovw = BOVW(
-        detector_type=DETECTOR,
-        dense=DENSE,
-        step_size=STEP_SIZE,
-        keypoint_size=KEYPOINT_SIZE,
-        codebook_size=CODEBOOK_SIZE
+        detector_type=detector,
+        dense=dense,
+        step_size=step_size,
+        keypoint_size=keypoint_size,
+        codebook_size=codebook_size
     )
     
     if check_descriptors_exist(temp_bovw):
         print("Found existing descriptors. Loading from disk.")
-        LOAD_DESCRIPTORS = True
+        load_descriptors = True
     else:
         print("Descriptors not found. Computing them.")
-        LOAD_DESCRIPTORS = False
+        load_descriptors = False
 
     # ---------------------
     
     # Construct descriptive run name
-    run_name = f"{DETECTOR}_dense{DENSE}_k{CODEBOOK_SIZE}_pyramid{SPATIAL_PYRAMID}_{CLASSIFIER}_C{C_PARAM}"
-    if CLASSIFIER == "SVM-RBF":
-        run_name += f"_gamma{GAMMA_PARAM}"
+    run_name = f"{detector}_dense{dense}_k{codebook_size}_pyramid{spatial_pyramid}_{classifier}_C{c_param}"
+    if classifier == "SVM-RBF":
+        run_name += f"_gamma{gamma_param}"
         
-    if DENSE:
-        run_name += f"_step{STEP_SIZE}_size{KEYPOINT_SIZE}"
+    if dense:
+        run_name += f"_step{step_size}_size{keypoint_size}"
 
-    # Only log to WandB if we are running on the full dataset
-    if MAX_SAMPLES_TRAIN is None and MAX_SAMPLES_TEST is None:
+    # Verify data path exists
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data path not found: {data_path}")
+
+    # Initialize WandB
+    if use_wandb:
+        # Re-init is important for sweeps
         wandb.init(
-            project="project-4-week1",
+            project=wandb_project,
             name=run_name,
+            reinit=True, 
             config={
-                "detector": DETECTOR,
-                "spatial_pyramid": SPATIAL_PYRAMID,
-                "levels": LEVELS,
-                "dense": DENSE,
-                "step_size": STEP_SIZE,
-                "keypoint_size": KEYPOINT_SIZE,
-                "max_samples_train": MAX_SAMPLES_TRAIN,
-                "max_samples_test": MAX_SAMPLES_TEST,
-                "codebook_size": CODEBOOK_SIZE,
-                "classifier": CLASSIFIER,
-                "C": C_PARAM,
-                "gamma": GAMMA_PARAM
+                "detector": detector,
+                "spatial_pyramid": spatial_pyramid,
+                "levels": levels,
+                "dense": dense,
+                "step_size": step_size,
+                "keypoint_size": keypoint_size,
+                "max_samples_train": max_samples_train,
+                "max_samples_test": max_samples_test,
+                "codebook_size": codebook_size,
+                "classifier": classifier,
+                "C": c_param,
+                "gamma": gamma_param
             }
         )
     else:
-        print("Running in TEST mode (subsampled data). WandB logging is DISABLED.")
+        print("WandB logging is DISABLED.")
 
     print("Loading Dataset...")
-    data_train = Dataset(ImageFolder=DATA_PATH + "train", max_samples=MAX_SAMPLES_TRAIN)
-    data_test = Dataset(ImageFolder=DATA_PATH + "test", max_samples=MAX_SAMPLES_TEST) 
+    data_train = Dataset(ImageFolder=os.path.join(data_path, "train"), max_samples=max_samples_train)
+    data_test = Dataset(ImageFolder=os.path.join(data_path, "test"), max_samples=max_samples_test) 
     
     if not data_train or not data_test:
+        if use_wandb: wandb.finish()
         raise ValueError("Dataset empty. Check paths.")
     
     # Initialize BoVW
     bovw = BOVW(
-        detector_type=DETECTOR,
-        dense=DENSE,
-        step_size=STEP_SIZE,
-        keypoint_size=KEYPOINT_SIZE,
-        codebook_size=CODEBOOK_SIZE,
-        levels=LEVELS
+        detector_type=detector,
+        dense=dense,
+        step_size=step_size,
+        keypoint_size=keypoint_size,
+        codebook_size=codebook_size,
+        levels=levels
     )
     
-    # Attach classifier name to BOVW object for convenience (hacky but works for passing info)
-    bovw.classifier_name = CLASSIFIER
+    # Attach classifier name to BOVW object for convenience
+    bovw.classifier_name = classifier
 
     import time
     start_time = time.time()
     
     # Prepare classifier kwargs
-    classifier_kwargs = {"C": C_PARAM}
-    if CLASSIFIER == "SVM-RBF":
-        classifier_kwargs["gamma"] = GAMMA_PARAM
+    classifier_kwargs = {"C": c_param}
+    if classifier == "SVM-RBF":
+        classifier_kwargs["gamma"] = gamma_param
 
     # Train
-    bovw, classifier = train(dataset=data_train, bovw=bovw, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID, classifier_kwargs=classifier_kwargs)
+    bovw, classifier_obj, train_acc, cv_score = train(dataset=data_train, bovw=bovw, load_descriptors=load_descriptors, spatial_pyramid=spatial_pyramid, classifier_kwargs=classifier_kwargs)
+    
+    # Calculate Train Accuracy explicitly if needed mostly it is printed inside train but good to return
+    # We can assume train() prints it. The object classifier is fitted.
     
     # Test
-    test(dataset=data_test, bovw=bovw, classifier=classifier, load_descriptors=LOAD_DESCRIPTORS, spatial_pyramid=SPATIAL_PYRAMID)
+    # We need to capture accurate metrics. The test function acts as a procedure, let's copy the evaluation logic here or modify test to return values.
+    # For minimal changes, I'll repeat the evaluation part or rely on what 'test' prints/logs? 
+    # Better to have 'test' return accuracy or just compute it here.
+    # The 'test' function computes and logs it. Let's make 'test' return the accuracy too in a separate small edit or just copy the logic.
+    # Actually, I'll just copy the evaluation logic here to be safe and have return values.
+    
+    print("Processing Test Data...")
+    test_paths, test_labels = process_dataset(data_test, bovw, split_name="test", load_from_disk=load_descriptors)
+    
+    print("Computing BoVW histograms (Test)...")
+    bovw_histograms_test = extract_bovw_histograms(bovw=bovw, descriptor_paths=test_paths, spatial_pyramid=spatial_pyramid)
+    
+    print("Predicting values...")
+    y_pred = classifier_obj.predict(bovw_histograms_test)
+    
+    test_acc = accuracy_score(y_true=test_labels, y_pred=y_pred)
+    print(f"Accuracy on Phase [Test]: {test_acc:.4f}")
 
     end_time = time.time()
     duration = end_time - start_time
-    print(f"Total Execution Time: {duration:.2f} seconds ({duration/60:.2f} minutes)")
     
-    if wandb.run is not None:
-        wandb.log({"execution_time_seconds": duration, "execution_time_minutes": duration/60})
+    if use_wandb:
+        wandb.log({
+            "test_accuracy": test_acc,
+            "execution_time_seconds": duration, 
+            "execution_time_minutes": duration/60
+        })
+        wandb.finish() # Finish the run so next one can start
+
+    return {
+        "detector": detector,
+        "dense": dense,
+        "classifier": classifier,
+        "C": c_param,
+        "gamma": gamma_param,
+        "test_accuracy": test_acc,
+        "train_accuracy": train_acc,
+        "cv_accuracy": cv_score,
+        "time": duration
+    }
+
+
+if __name__ == "__main__":
+    # Default behavior if run directly
+    run_experiment(
+        detector="SIFT",
+        dense=False,
+        codebook_size=1024,
+        classifier="SVM-Linear",
+        c_param=1.0,
+        use_wandb=True,
+        # max_samples_train=100, # Uncomment for testing
+        # max_samples_test=10
+    )

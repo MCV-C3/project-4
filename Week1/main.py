@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from bovw import BOVW
 
@@ -352,10 +353,19 @@ def get_classifier(name, config):
         return SVC(kernel='linear', **svm_args)
     elif name == "SVM-RBF":
         return SVC(kernel='rbf', **svm_args)
-    elif name == "SVM-HistogramIntersection":
+    
+    if name == "SVM-HistogramIntersection":
         return SVC(kernel=histogram_intersection_kernel, **svm_args)
     else:
         raise ValueError(f"Unknown classifier: {name}")
+
+
+def get_scaler(name: str):
+    if name == "StandardScaler":
+        return StandardScaler()
+    elif name == "MinMaxScaler":
+        return MinMaxScaler()
+    return None
     
 
 # ==========================================
@@ -381,7 +391,13 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     
     print(f"Fitting the classifier: {config['classifier']}...")
     classifier = get_classifier(config["classifier"], config)
-
+    
+    # Scaling
+    scaler = get_scaler(config.get("scaler"))
+    if scaler:
+        print(f"Fitting Scaler: {config['scaler']}...")
+        bovw_histograms = scaler.fit_transform(bovw_histograms)
+    
     # Cross Validation
     print("Performing Cross-Validation...")
     scores = cross_val_score(classifier, bovw_histograms, train_labels, cv=5, n_jobs=-1)
@@ -395,16 +411,20 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     if wandb.run is not None:
         wandb.log({"train_accuracy": train_acc})
 
-    return bovw, classifier, train_acc
+    return bovw, classifier, scaler, train_acc
 
     
-def test(dataset: List[Tuple], bovw: BOVW, classifier: object, config: dict, load_descriptors: bool = True):
+def test(dataset: List[Tuple], bovw: BOVW, classifier: object, scaler: object, config: dict, load_descriptors: bool = True):
     
     print("Processing Test Data...")
     test_paths, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
     
     print("Computing BoVW histograms (Test)...")
     bovw_histograms = extract_bovw_histograms(bovw, test_paths, spatial_pyramid=config["spatial_pyramid"])
+    
+    if scaler:
+        print("Applying Scaler transform...")
+        bovw_histograms = scaler.transform(bovw_histograms)
     
     print("Predicting values...")
     y_pred = classifier.predict(bovw_histograms)
@@ -431,7 +451,7 @@ def run_experiment(config: dict):
     if not data_train or not data_test:
         raise ValueError("Dataset empty.")
 
-   # Initialize BoVW
+    # Initialize BoVW
     bovw = BOVW(
         detector_type=config["detector"],
         dense=config["dense"],
@@ -442,7 +462,8 @@ def run_experiment(config: dict):
         detector_kwargs=config.get("detector_kwargs", {}),
         random_state=config.get("seed", 42),
         use_pca=config.get("use_pca", False),
-        n_components=config.get("pca_components", 64)
+        n_components=config.get("pca_components", 64),
+        normalization=config.get("normalization", "l2")
     )
 
     # Check Descriptors existence to decide on compute vs load
@@ -454,10 +475,10 @@ def run_experiment(config: dict):
         print("Descriptors not found. Computing...")
 
     # Train
-    bovw, classifier, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
+    bovw, classifier, scaler, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
 
     # Test
-    test_acc = test(data_test, bovw, classifier, config, load_descriptors=load_descriptors)
+    test_acc = test(data_test, bovw, classifier, scaler, config, load_descriptors=load_descriptors)
 
     return train_acc, test_acc
 
@@ -488,6 +509,9 @@ if __name__ == "__main__":
         
         "use_pca": False,
         "pca_components": 64,
+
+        "normalization": "l2", # l1, l2, none
+        "scaler": None,        # StandardScaler, MinMaxScaler, None
 
         # Classifier
         "classifier": "SVM-Linear",  # LogisticRegression, SVM-Linear, SVM-RBF

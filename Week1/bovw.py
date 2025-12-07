@@ -12,7 +12,7 @@ class BOVW():
     
     def __init__(self, detector_type="AKAZE", dense:bool=False, step_size:int=8, scale:int=8, codebook_size:int=50, 
                  levels:list=[1], random_state:int=42, detector_kwargs:dict={}, codebook_kwargs:dict={},
-                 use_pca:bool=False, n_components:int=64):
+                 use_pca:bool=False, n_components:int=64, normalization:str='l2'):
 
         if dense and detector_type != 'SIFT':
             raise ValueError("Dense sampling is currently only supported for SIFT.")
@@ -52,6 +52,8 @@ class BOVW():
             self.pca = IncrementalPCA(n_components=self.n_components)
         else:
             self.pca = None
+
+        self.normalization = normalization.lower()
 
                
     ## Modify this function in order to be able to create a dense sift
@@ -139,10 +141,14 @@ class BOVW():
         for label in visual_words:
             codebook_descriptor[label] += 1
         
-        # Normalize the histogram 
-        norm = np.linalg.norm(codebook_descriptor)
-        if norm > 0:
-            codebook_descriptor /= norm
+        if self.normalization == 'l2':
+            norm = np.linalg.norm(codebook_descriptor)
+            if norm > 0:
+                codebook_descriptor /= norm
+        elif self.normalization == 'l1':
+            norm = np.sum(np.abs(codebook_descriptor))
+            if norm > 0:
+                codebook_descriptor /= norm
         
         return codebook_descriptor       
     
@@ -206,9 +212,14 @@ class BOVW():
         pyramid_histogram = np.array(pyramid_histogram)
 
         # Normalization of concatenated histogram
-        norm = np.linalg.norm(pyramid_histogram)
-        if norm > 0:
-            pyramid_histogram /= norm
+        if self.normalization == 'l2':
+            norm = np.linalg.norm(pyramid_histogram)
+            if norm > 0:
+                pyramid_histogram /= norm
+        elif self.normalization == 'l1':
+            norm = np.sum(np.abs(pyramid_histogram))
+            if norm > 0:
+                pyramid_histogram /= norm
             
         return pyramid_histogram
 

@@ -223,6 +223,46 @@ def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: in
         gc.collect()
 
 
+def fit_pca_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: int = 500):
+    """
+    Loads descriptors in small batches to fit the PCA without crashing RAM.
+    """
+    if not bovw.use_pca:
+        return
+
+    valid_batch = []
+    print(f"Fitting PCA in batches of {batch_size}...")
+    
+    for i, path in enumerate(tqdm.tqdm(descriptor_paths, desc="Fitting PCA")):
+        try:
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+
+            if isinstance(data, dict):
+                desc = data["descriptors"]
+            else:
+                desc = data
+
+            # Only add if it has descriptors
+            if desc is not None and len(desc) > 0:
+                valid_batch.append(desc)
+        except Exception as e:
+            print(f"Error loading {path}: {e}")
+            continue
+
+        # If batch is full, update pca and clear memory
+        if len(valid_batch) >= batch_size:
+            bovw.fit_pca_partial(descriptors=valid_batch)
+            valid_batch = []
+            gc.collect()
+
+    # Process remaining items in the last batch
+    if len(valid_batch) > 0:
+        bovw.fit_pca_partial(descriptors=valid_batch)
+        del valid_batch
+        gc.collect()
+
+
 def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T", "d"], spatial_pyramid = False):
     """
     Loads one descriptor file at a time, computes the histogram, and discards raw data.
@@ -330,12 +370,16 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     train_paths, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
     
     # Fit codebook by batches (RAM saving)
+    # Fit codebook by batches (RAM saving)
+    if bovw.use_pca:
+        fit_pca_batched(bovw, train_paths, batch_size=config["codebook_batch_size"])
+        
     fit_codebook_batched(bovw, train_paths, batch_size=config["codebook_batch_size"])
 
     print("Computing BoVW histograms [Train]...")
     bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=config["spatial_pyramid"])
     
-    print(f"Fitting the classifier: {config["classifier"]}...")
+    print(f"Fitting the classifier: {config['classifier']}...")
     classifier = get_classifier(config["classifier"], config)
 
     # Cross Validation
@@ -396,7 +440,9 @@ def run_experiment(config: dict):
         codebook_size=config["codebook_size"],
         levels=config["levels"],
         detector_kwargs=config.get("detector_kwargs", {}),
-        random_state=config.get("seed", 42)
+        random_state=config.get("seed", 42),
+        use_pca=config.get("use_pca", False),
+        n_components=config.get("pca_components", 64)
     )
 
     # Check Descriptors existence to decide on compute vs load
@@ -440,6 +486,9 @@ if __name__ == "__main__":
         "spatial_pyramid": False,
         "levels": [1, 2],
         
+        "use_pca": False,
+        "pca_components": 64,
+
         # Classifier
         "classifier": "SVM-Linear",  # LogisticRegression, SVM-Linear, SVM-RBF
         "C": 1.0,

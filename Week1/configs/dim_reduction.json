@@ -29,6 +29,64 @@
         }
     },
     {
+        "name": "SIFT (pca_components=2)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "SIFT",
+            "detector_kwargs": {"nfeatures": 1000},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 200,
+            "spatial_pyramid": false,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 2,
+        
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "codebook_batch_size": 200,
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SIFT (pca_components=4)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "SIFT",
+            "detector_kwargs": {"nfeatures": 1000},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 200,
+            "spatial_pyramid": false,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 4,
+        
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "codebook_batch_size": 200,
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
         "name": "SIFT (pca_components=8)",
         "config": {
             "data_path": "../data/MIT_split/",

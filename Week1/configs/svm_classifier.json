@@ -1,0 +1,314 @@
+[
+    {
+        "name": "SVM-Linear (C=0.01)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-Linear",
+            "C": 0.01,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-Linear (C=0.1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-Linear",
+            "C": 0.1,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-Linear (C=1.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-Linear",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-Linear (C=10.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-Linear",
+            "C": 10.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-RBF (C=0.01)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-RBF",
+            "C": 0.01,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-RBF (C=0.1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-RBF",
+            "C": 0.1,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-RBF (C=1.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-RBF",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-RBF (C=10.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-RBF",
+            "C": 10.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-HistogramIntersection (C=0.01)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-HistogramIntersection",
+            "C": 0.01,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-HistogramIntersection (C=0.1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-HistogramIntersection",
+            "C": 0.1,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-HistogramIntersection (C=1.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-HistogramIntersection",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-HistogramIntersection (C=10.0)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 500,
+            "spatial_pyramid": true,
+            "levels": [
+                1,
+                2
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "classifier": "SVM-HistogramIntersection",
+            "C": 10.0,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    }
+]

@@ -6,7 +6,7 @@
             "seed": 42,
             
             "detector": "SIFT",
-            "detector_kwargs": {"nfeatures": 200},
+            "detector_kwargs": {"nfeatures": 500},
             "dense": false,
             "step_size": 8,
             "scale": 8,
@@ -19,7 +19,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -45,7 +45,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -71,7 +71,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null

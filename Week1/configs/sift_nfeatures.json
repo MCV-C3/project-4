@@ -1,5 +1,31 @@
 [
     {
+        "name": "SIFT (N=50)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "SIFT",
+            "detector_kwargs": {"nfeatures": 50},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [1],
+            
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "codebook_batch_size": 1000,
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
         "name": "SIFT (N=100)",
         "config": {
             "data_path": "../data/MIT_split/",
@@ -19,7 +45,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -45,7 +71,33 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
+
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SIFT (N=1000)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            
+            "detector": "SIFT",
+            "detector_kwargs": {"nfeatures": 1000},
+            "dense": false,
+            "step_size": 8,
+            "scale": 8,
+            
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [1],
+            
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -71,7 +123,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -97,7 +149,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -123,7 +175,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null
@@ -149,7 +201,7 @@
             "C": 1.0,
             "gamma": "scale",
 
-            "codebook_batch_size": 10000,
+            "codebook_batch_size": 1000,
 
             "max_samples_train": null,
             "max_samples_test": null

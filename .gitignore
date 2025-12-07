@@ -1,5 +1,6 @@
 __pycache__
 data/
+results/
 computed_descriptors*/
 wandb
 *.txt

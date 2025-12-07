@@ -411,7 +411,7 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     if wandb.run is not None:
         wandb.log({"train_accuracy": train_acc})
 
-    return bovw, classifier, scaler, train_acc
+    return bovw, classifier, scaler, train_acc, scores
 
     
 def test(dataset: List[Tuple], bovw: BOVW, classifier: object, scaler: object, config: dict, load_descriptors: bool = True):
@@ -475,12 +475,12 @@ def run_experiment(config: dict):
         print("Descriptors not found. Computing...")
 
     # Train
-    bovw, classifier, scaler, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
+    bovw, classifier, scaler, train_acc, cv_scores = train(data_train, bovw, config, load_descriptors=load_descriptors)
 
     # Test
     test_acc = test(data_test, bovw, classifier, scaler, config, load_descriptors=load_descriptors)
 
-    return train_acc, test_acc
+    return train_acc, test_acc, cv_scores
 
 
 # ==========================================

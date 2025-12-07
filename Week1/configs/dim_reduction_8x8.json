@@ -1,513 +1,464 @@
 [
     {
-        "name": "SIFT_None_None",
+        "name": "SIFT (pca_components=1)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": null,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 1,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L2_None",
+        "name": "SIFT (pca_components=2)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l2",
-            "scaler": null,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 2,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L1_None",
+        "name": "SIFT (pca_components=4)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l1",
-            "scaler": null,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 4,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L2_Standard",
+        "name": "SIFT (pca_components=8)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
+            "levels": [1],
+
+            "use_pca": true,
             "pca_components": 8,
-            "normalization": "l2",
-            "scaler": "StandardScaler",
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L1_Standard",
+        "name": "SIFT (pca_components=16)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l1",
-            "scaler": "StandardScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 16,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_None_Standard",
+        "name": "SIFT (pca_components=32)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": "StandardScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 32,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L2_MinMax",
+        "name": "SIFT (pca_components=64)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l2",
-            "scaler": "MinMaxScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 64,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_L1_MinMax",
+        "name": "SIFT (pca_components=128)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
+            "detector_kwargs": {"nfeatures": 1000},
             "dense": false,
             "step_size": 8,
             "scale": 8,
+            
             "codebook_size": 200,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l1",
-            "scaler": "MinMaxScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 128,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "SIFT_None_MinMax",
+        "name": "Dense SIFT (pca_components=1)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-                "nfeatures": 1000
-            },
-            "dense": false,
+            "detector_kwargs": {},
+            "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": "MinMaxScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 1,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_None_None",
+        "name": "Dense SIFT (pca_components=2)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": null,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 2,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_L2_None",
+        "name": "Dense SIFT (pca_components=4)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l2",
-            "scaler": null,
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 4,
+        
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_L1_None",
+        "name": "Dense SIFT (pca_components=8)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
+            "levels": [1],
+
+            "use_pca": true,
             "pca_components": 8,
-            "normalization": "l1",
-            "scaler": null,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_L2_Standard",
+        "name": "Dense SIFT (pca_components=16)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l2",
-            "scaler": "StandardScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 16,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_L1_Standard",
+        "name": "Dense SIFT (pca_components=32)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l1",
-            "scaler": "StandardScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 32,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_None_Standard",
+        "name": "Dense SIFT (pca_components=64)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": "StandardScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 64,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }
     },
     {
-        "name": "Dense_SIFT_L2_MinMax",
+        "name": "Dense SIFT (pca_components=128)",
         "config": {
             "data_path": "../data/MIT_split/",
             "seed": 42,
+            
             "detector": "SIFT",
-            "detector_kwargs": {
-            },
+            "detector_kwargs": {},
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            
+            "codebook_size": 500,
             "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l2",
-            "scaler": "MinMaxScaler",
+            "levels": [1],
+
+            "use_pca": true,
+            "pca_components": 128,
+            
             "classifier": "LogisticRegression",
             "C": 1.0,
             "gamma": "scale",
+
             "codebook_batch_size": 200,
-            "max_samples_train": null,
-            "max_samples_test": null
-        }
-    },
-    {
-        "name": "Dense_SIFT_L1_MinMax",
-        "config": {
-            "data_path": "../data/MIT_split/",
-            "seed": 42,
-            "detector": "SIFT",
-            "detector_kwargs": {
-            },
-            "dense": true,
-            "step_size": 16,
-            "scale": 8,
-            "codebook_size": 200,
-            "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "l1",
-            "scaler": "MinMaxScaler",
-            "classifier": "LogisticRegression",
-            "C": 1.0,
-            "gamma": "scale",
-            "codebook_batch_size": 200,
-            "max_samples_train": null,
-            "max_samples_test": null
-        }
-    },
-    {
-        "name": "Dense_SIFT_None_MinMax",
-        "config": {
-            "data_path": "../data/MIT_split/",
-            "seed": 42,
-            "detector": "SIFT",
-            "detector_kwargs": {
-            },
-            "dense": true,
-            "step_size": 16,
-            "scale": 8,
-            "codebook_size": 200,
-            "spatial_pyramid": false,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 8,
-            "normalization": "none",
-            "scaler": "MinMaxScaler",
-            "classifier": "LogisticRegression",
-            "C": 1.0,
-            "gamma": "scale",
-            "codebook_batch_size": 200,
+
             "max_samples_train": null,
             "max_samples_test": null
         }

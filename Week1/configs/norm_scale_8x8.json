@@ -269,9 +269,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -297,9 +297,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -325,9 +325,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -353,9 +353,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -381,9 +381,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -409,9 +409,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -437,9 +437,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -465,9 +465,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -493,9 +493,9 @@
             "detector_kwargs": {
             },
             "dense": true,
-            "step_size": 16,
+            "step_size": 8,
             "scale": 8,
-            "codebook_size": 200,
+            "codebook_size": 500,
             "spatial_pyramid": false,
             "levels": [
                 1

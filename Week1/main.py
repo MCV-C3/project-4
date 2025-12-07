@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from bovw import BOVW
 
@@ -223,6 +224,46 @@ def fit_codebook_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: in
         gc.collect()
 
 
+def fit_pca_batched(bovw: BOVW, descriptor_paths: List[str], batch_size: int = 500):
+    """
+    Loads descriptors in small batches to fit the PCA without crashing RAM.
+    """
+    if not bovw.use_pca:
+        return
+
+    valid_batch = []
+    print(f"Fitting PCA in batches of {batch_size}...")
+    
+    for i, path in enumerate(tqdm.tqdm(descriptor_paths, desc="Fitting PCA")):
+        try:
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+
+            if isinstance(data, dict):
+                desc = data["descriptors"]
+            else:
+                desc = data
+
+            # Only add if it has descriptors
+            if desc is not None and len(desc) > 0:
+                valid_batch.append(desc)
+        except Exception as e:
+            print(f"Error loading {path}: {e}")
+            continue
+
+        # If batch is full, update pca and clear memory
+        if len(valid_batch) >= batch_size:
+            bovw.fit_pca_partial(descriptors=valid_batch)
+            valid_batch = []
+            gc.collect()
+
+    # Process remaining items in the last batch
+    if len(valid_batch) > 0:
+        bovw.fit_pca_partial(descriptors=valid_batch)
+        del valid_batch
+        gc.collect()
+
+
 def extract_bovw_histograms(bovw: Type[BOVW], descriptor_paths: Literal["N", "T", "d"], spatial_pyramid = False):
     """
     Loads one descriptor file at a time, computes the histogram, and discards raw data.
@@ -312,10 +353,19 @@ def get_classifier(name, config):
         return SVC(kernel='linear', **svm_args)
     elif name == "SVM-RBF":
         return SVC(kernel='rbf', **svm_args)
-    elif name == "SVM-HistogramIntersection":
+    
+    if name == "SVM-HistogramIntersection":
         return SVC(kernel=histogram_intersection_kernel, **svm_args)
     else:
         raise ValueError(f"Unknown classifier: {name}")
+
+
+def get_scaler(name: str):
+    if name == "StandardScaler":
+        return StandardScaler()
+    elif name == "MinMaxScaler":
+        return MinMaxScaler()
+    return None
     
 
 # ==========================================
@@ -330,14 +380,24 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     train_paths, train_labels = process_dataset(dataset, bovw, split_name="train", load_from_disk=load_descriptors)
     
     # Fit codebook by batches (RAM saving)
+    # Fit codebook by batches (RAM saving)
+    if bovw.use_pca:
+        fit_pca_batched(bovw, train_paths, batch_size=config["codebook_batch_size"])
+        
     fit_codebook_batched(bovw, train_paths, batch_size=config["codebook_batch_size"])
 
     print("Computing BoVW histograms [Train]...")
     bovw_histograms = extract_bovw_histograms(bovw=bovw, descriptor_paths=train_paths, spatial_pyramid=config["spatial_pyramid"])
     
-    print(f"Fitting the classifier: {config["classifier"]}...")
+    print(f"Fitting the classifier: {config['classifier']}...")
     classifier = get_classifier(config["classifier"], config)
-
+    
+    # Scaling
+    scaler = get_scaler(config.get("scaler"))
+    if scaler:
+        print(f"Fitting Scaler: {config['scaler']}...")
+        bovw_histograms = scaler.fit_transform(bovw_histograms)
+    
     # Cross Validation
     print("Performing Cross-Validation...")
     scores = cross_val_score(classifier, bovw_histograms, train_labels, cv=5, n_jobs=-1)
@@ -351,16 +411,20 @@ def train(dataset: List[Tuple], bovw: BOVW, config: dict, load_descriptors: bool
     if wandb.run is not None:
         wandb.log({"train_accuracy": train_acc})
 
-    return bovw, classifier, train_acc
+    return bovw, classifier, scaler, train_acc
 
     
-def test(dataset: List[Tuple], bovw: BOVW, classifier: object, config: dict, load_descriptors: bool = True):
+def test(dataset: List[Tuple], bovw: BOVW, classifier: object, scaler: object, config: dict, load_descriptors: bool = True):
     
     print("Processing Test Data...")
     test_paths, test_labels = process_dataset(dataset, bovw, split_name="test", load_from_disk=load_descriptors)
     
     print("Computing BoVW histograms (Test)...")
     bovw_histograms = extract_bovw_histograms(bovw, test_paths, spatial_pyramid=config["spatial_pyramid"])
+    
+    if scaler:
+        print("Applying Scaler transform...")
+        bovw_histograms = scaler.transform(bovw_histograms)
     
     print("Predicting values...")
     y_pred = classifier.predict(bovw_histograms)
@@ -387,7 +451,7 @@ def run_experiment(config: dict):
     if not data_train or not data_test:
         raise ValueError("Dataset empty.")
 
-   # Initialize BoVW
+    # Initialize BoVW
     bovw = BOVW(
         detector_type=config["detector"],
         dense=config["dense"],
@@ -396,7 +460,10 @@ def run_experiment(config: dict):
         codebook_size=config["codebook_size"],
         levels=config["levels"],
         detector_kwargs=config.get("detector_kwargs", {}),
-        random_state=config.get("seed", 42)
+        random_state=config.get("seed", 42),
+        use_pca=config.get("use_pca", False),
+        n_components=config.get("pca_components", 64),
+        normalization=config.get("normalization", "l2")
     )
 
     # Check Descriptors existence to decide on compute vs load
@@ -408,10 +475,10 @@ def run_experiment(config: dict):
         print("Descriptors not found. Computing...")
 
     # Train
-    bovw, classifier, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
+    bovw, classifier, scaler, train_acc = train(data_train, bovw, config, load_descriptors=load_descriptors)
 
     # Test
-    test_acc = test(data_test, bovw, classifier, config, load_descriptors=load_descriptors)
+    test_acc = test(data_test, bovw, classifier, scaler, config, load_descriptors=load_descriptors)
 
     return train_acc, test_acc
 
@@ -440,6 +507,12 @@ if __name__ == "__main__":
         "spatial_pyramid": False,
         "levels": [1, 2],
         
+        "use_pca": False,
+        "pca_components": 64,
+
+        "normalization": "l2", # l1, l2, none
+        "scaler": None,        # StandardScaler, MinMaxScaler, None
+
         # Classifier
         "classifier": "SVM-Linear",  # LogisticRegression, SVM-Linear, SVM-RBF
         "C": 1.0,

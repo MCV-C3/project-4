@@ -1,12 +1,18 @@
 import os
+import re
+import cv2
 import json
 import time
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 from matplotlib.ticker import ScalarFormatter
-import re
-from main import run_experiment  # Assuming main.py is in the same directory
+from main import run_experiment 
+from bovw import BOVW
+from PIL import Image
 
 # -------------------------------------------------------------------------
 # Experiment Helpers
@@ -934,6 +940,200 @@ def plot_svm_rbf_gamma(df):
     
     plt.grid(axis='y', linestyle='--', alpha=0.5)
     plt.legend(title="Dataset Split", loc='upper left')
+
+    plt.tight_layout()
+    plt.show()
+
+
+# -------------------------------------------------------------------------
+# Explanatory visualizations
+# -------------------------------------------------------------------------
+
+
+def visualize_dense_sift_grid(image_path, step_sizes, scale_factors):
+    if not os.path.exists(image_path):
+        print(f"Error: Image not found at {image_path}")
+        return
+
+    # 1. Load and Crop Image
+    # We crop the image to a smaller region (e.g., 200x200) so we can actually SEE the circles.
+    # If we use the full image, Step=4 looks like a solid block of color.
+    img_orig = cv2.imread(image_path)
+    img_orig = cv2.cvtColor(img_orig, cv2.COLOR_BGR2RGB)
+    
+    # Crop a central patch for better visibility
+    h, w = img_orig.shape[:2]
+    crop_size = 192
+    cy, cx = h // 2, w // 2
+    img = img_orig[cy-crop_size//2 : cy+crop_size//2, cx-crop_size//2 : cx+crop_size//2]
+    h, w = img.shape[:2]
+
+    # 2. Setup Plot Grid
+    n_rows = len(step_sizes)
+    n_cols = len(scale_factors)
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 4*n_rows))
+    plt.suptitle(f"Dense SIFT Visualization", fontsize=16, y=1)
+
+    # 3. Iterate Parameters
+    for i, step in enumerate(step_sizes):
+        for j, factor in enumerate(scale_factors):
+            ax = axes[i, j] if n_rows > 1 else axes[j]
+            
+            # Calculate Scale based on your formula
+            # Ensure scale is at least 1 pixel
+            scale = max(1, int(step / factor))
+            
+            # Generate Keypoints (Manual Grid)
+            keypoints = []
+            for y in range(step // 2, h, step):
+                for x in range(step // 2, w, step):
+                    # OpenCV KeyPoint takes (x, y, size)
+                    # size is the diameter of the SIFT neighborhood
+                    keypoints.append(cv2.KeyPoint(float(x), float(y), float(scale)))
+
+            # Draw Keypoints
+            # DRAW_RICH_KEYPOINTS flag draws the circle representing the scale
+            img_with_kps = cv2.drawKeypoints(img, keypoints, None, 
+                                           flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS,
+                                           color=(-1, -1, -1)) # Green circles
+
+            # Plot
+            ax.imshow(img_with_kps)
+            ax.set_title(f"Step: {step}px | Factor: {factor}\nScale (Diam): {scale}px")
+            ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+def visualize_spatial_pyramid(image_path: str, bovw: BOVW):
+    """
+    Visualizes the Spatial Pyramid grids and the resulting histograms per level.
+    """
+    if not os.path.exists(image_path):
+        print(f"Error: Image {image_path} not found.")
+        return
+
+    # 1. Load Image
+    img_pil = Image.open(image_path).convert("RGB")
+    img_np = np.array(img_pil)
+    h, w = img_np.shape[:2]
+
+    # 2. Extract Features (Using your class method)
+    # Your _extract_features returns (keypoints, descriptors)
+    kps, descs = bovw._extract_features(img_np)
+    
+    if descs is None or len(descs) == 0:
+        print("No features found in image.")
+        return
+
+    # Convert KeyPoint objects to (x, y) coordinates for plotting
+    kp_positions = np.array([kp.pt for kp in kps])
+
+    # 3. Check if Codebook is fitted (needed to show histograms)
+    # If not fitted, we fit it temporarily on this single image just for visualization
+    try:
+        bovw.codebook_algo.predict(descs[0:1])
+        is_fitted = True
+    except:
+        print("Warning: Codebook not fitted. Fitting temporarily on this image for visualization.")
+        bovw._update_fit_codebook([descs])
+        is_fitted = True
+    
+    # Predict visual words for the image
+    visual_words = bovw.codebook_algo.predict(descs)
+
+    # 4. Create Plots (Rows = Levels)
+    levels = bovw.levels
+    fig, axes = plt.subplots(len(levels), 2, figsize=(15, 5 * len(levels)))
+    if len(levels) == 1: axes = [axes] # Handle single level case
+
+    print(f"--- Visualizing {len(levels)} Levels ---")
+
+    for idx, level in enumerate(levels):
+        # Setup Axes
+        ax_img = axes[idx][0] if len(levels) > 1 else axes[0]
+        ax_hist = axes[idx][1] if len(levels) > 1 else axes[1]
+        
+        # Show Image
+        ax_img.imshow(img_np)
+        ax_img.set_title(f"Level {idx}: Grid {level}x{level}")
+        
+        step_x = w / level
+        step_y = h / level
+
+        # --- DRAW GRID & CALCULATE HISTOGRAM ---
+        
+        # We will collect histograms for this level to plot them
+        level_histograms = []
+        cell_labels = []
+        
+        cell_id = 0
+        
+        # Iterate Rows and Cols (Same logic as your _compute_spatial_pyramid_descriptor)
+        for r in range(level):
+            for c in range(level):
+                # Coordinates
+                x_min, x_max = c * step_x, (c+1) * step_x
+                y_min, y_max = r * step_y, (r+1) * step_y
+
+                # Draw Lines
+                rect = patches.Rectangle((x_min, y_min), x_max-x_min, y_max-y_min, 
+                                         linewidth=2, edgecolor='red', facecolor='none', alpha=0.7)
+                ax_img.add_patch(rect)
+                
+                # Filter points in this cell
+                in_x = (kp_positions[:, 0] >= x_min) & (kp_positions[:, 0] < x_max)
+                in_y = (kp_positions[:, 1] >= y_min) & (kp_positions[:, 1] < y_max)
+                in_cell_indices = np.where(in_x & in_y)[0]
+                
+                # Plot points (Optional: only plot a subset to avoid clutter)
+                if len(in_cell_indices) > 0:
+                    ax_img.scatter(kp_positions[in_cell_indices, 0], kp_positions[in_cell_indices, 1], 
+                                   s=5, alpha=0.5, label=f'Cell {cell_id}')
+
+                # Add Cell ID Text
+                ax_img.text(x_min + 5, y_min + 20, f"Cell {cell_id}", 
+                            color='white', fontweight='bold', bbox=dict(facecolor='red', alpha=0.5))
+
+                # Compute Histogram for this specific cell
+                hist = np.zeros(bovw.codebook_size)
+                if len(in_cell_indices) > 0:
+                    cell_words = visual_words[in_cell_indices]
+                    for w_idx in cell_words:
+                        hist[w_idx] += 1
+                
+                # Normalize local histogram for visualization clarity
+                if np.sum(hist) > 0: hist = hist / np.sum(hist)
+                
+                level_histograms.append(hist)
+                cell_labels.append(f"Cell {cell_id}")
+                cell_id += 1
+
+        ax_img.axis('off')
+
+        # --- PLOT HISTOGRAM FOR THIS LEVEL ---
+        # We stack the histograms of all cells in this level side-by-side
+        # This shows how the feature vector is constructed (concatenation)
+        
+        combined_hist = np.concatenate(level_histograms)
+        ax_hist.bar(range(len(combined_hist)), combined_hist, width=1.0)
+        
+        # Draw vertical lines separating cells in the histogram
+        for i in range(1, len(level_histograms)):
+            ax_hist.axvline(x=i * bovw.codebook_size, color='red', linestyle='--')
+            
+        ax_hist.set_title(f"Concatenated Histogram for Level {level}x{level}")
+        ax_hist.set_xlabel("Feature Index (concatenated cells)")
+        ax_hist.set_ylabel("Normalized Frequency")
+        
+        # Add text to indicate which section belongs to which cell
+        for i in range(len(level_histograms)):
+            mid_point = (i * bovw.codebook_size) + (bovw.codebook_size / 2)
+            ax_hist.text(mid_point, max(combined_hist)*0.9, f"Cell {i}", 
+                         ha='center', color='red', fontweight='bold')
 
     plt.tight_layout()
     plt.show()

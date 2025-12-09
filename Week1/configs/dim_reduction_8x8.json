@@ -243,7 +243,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -272,7 +272,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -301,7 +301,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -330,7 +330,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -359,7 +359,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -388,7 +388,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -417,7 +417,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 
@@ -446,7 +446,7 @@
             "step_size": 8,
             "scale": 8,
             
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [1],
 

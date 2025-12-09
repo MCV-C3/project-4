@@ -9,13 +9,15 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
-            "spatial_pyramid": true,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
             "levels": [
                 1
             ],
             "use_pca": false,
             "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
             "classifier": "SVM-RBF",
             "C": 1.0,
             "gamma": "scale",
@@ -34,16 +36,45 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
-            "spatial_pyramid": true,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
             "levels": [
                 1
             ],
             "use_pca": false,
             "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
             "classifier": "SVM-RBF",
             "C": 1.0,
             "gamma": "auto",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    },
+    {
+        "name": "SVM-RBF (Gamma=0.1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
+            "classifier": "SVM-RBF",
+            "C": 0.1,
+            "gamma": 1,
             "codebook_batch_size": 200,
             "max_samples_train": null,
             "max_samples_test": null
@@ -59,13 +90,15 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
-            "spatial_pyramid": true,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
             "levels": [
                 1
             ],
             "use_pca": false,
             "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
             "classifier": "SVM-RBF",
             "C": 1.0,
             "gamma": 1,
@@ -84,41 +117,18 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
-            "spatial_pyramid": true,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
             "levels": [
                 1
             ],
             "use_pca": false,
             "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
             "classifier": "SVM-RBF",
             "C": 1.0,
             "gamma": 10,
-            "codebook_batch_size": 200,
-            "max_samples_train": null,
-            "max_samples_test": null
-        }
-    },
-    {
-        "name": "SVM-RBF (Gamma=100)",
-        "config": {
-            "data_path": "../data/MIT_split/",
-            "seed": 42,
-            "detector": "SIFT",
-            "detector_kwargs": {},
-            "dense": true,
-            "step_size": 8,
-            "scale": 8,
-            "codebook_size": 500,
-            "spatial_pyramid": true,
-            "levels": [
-                1
-            ],
-            "use_pca": false,
-            "pca_components": 64,
-            "classifier": "SVM-RBF",
-            "C": 1.0,
-            "gamma": 100,
             "codebook_batch_size": 200,
             "max_samples_train": null,
             "max_samples_test": null

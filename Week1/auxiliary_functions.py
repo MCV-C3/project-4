@@ -947,6 +947,87 @@ def plot_spatial_pyramid(df):
     plt.show()
 
 
+def plot_SP_times(df):
+    """
+    Plots execution times for Spatial Pyramids (Time vs Level)
+    based on the specific dataframe structure provided.
+    """
+    df = df.copy()
+
+    # --- 1. Data Parsing ---
+    def parse_descriptor(row):
+        s = str(row)
+        # Extract Method (Dense SIFT or SIFT)
+        if "Dense" in s:
+            method = "Dense SIFT"
+        else:
+            method = "Standard SIFT"
+        
+        # Extract Level (L1, L2, L3) -> 1, 2, 3
+        # Regex looks for 'L' followed by a digit
+        match = re.search(r'L(\d+)', s)
+        level = int(match.group(1)) if match else 0
+        
+        return pd.Series([method, level])
+
+    # Create new columns for plotting
+    df[['Method', 'Level']] = df['Descriptor'].apply(parse_descriptor)
+    
+    # Sort to ensure lines connect correctly (Level 1 -> 2 -> 3)
+    df = df.sort_values(by=['Method', 'Level'])
+
+    # --- 2. Plotting ---
+    plt.figure(figsize=(10, 6))
+
+    # We use seaborn lineplot for easy grouping by Method
+    sns.lineplot(
+        data=df,
+        x='Level',
+        y='Time (s)',
+        hue='Method',
+        style='Method',
+        markers=True,
+        dashes=False, # Solid lines for both
+        palette={'Dense SIFT': '#3E6082', 'Standard SIFT': '#4DB380'},
+        linewidth=2.5,
+        markersize=9
+    )
+
+    # --- 3. Annotation loop ---
+    # We iterate through the rows to annotate the specific points
+    for i, row in df.iterrows():
+        # Choose color based on method
+        color = '#3E6082' if row['Method'] == 'Dense SIFT' else '#4DB380'
+        
+        # Offset text slightly to avoid overlapping the line
+        offset_y = 10 if row['Method'] == 'Dense SIFT' else -15
+        
+        plt.annotate(
+            f"{row['Time (s)']:.1f}s", 
+            (row['Level'], row['Time (s)']), 
+            textcoords="offset points", 
+            xytext=(0, offset_y), 
+            ha='center', 
+            color=color, 
+            weight='bold',
+            fontsize=10
+        )
+
+    # --- 4. Final Styling ---
+    plt.title("Computational Cost: Execution Time vs. Spatial Pyramid Level", fontsize=16, pad=20)
+    plt.xlabel("Pyramid Level (Depth)", fontsize=12)
+    plt.ylabel("Execution Time (seconds)", fontsize=12)
+    
+    # Force x-axis to show only integers 1, 2, 3
+    plt.xticks([1, 2, 3])
+    
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend(fontsize=11, loc='upper left')
+    plt.tight_layout()
+    
+    plt.show()
+    
+
 def plot_logistic(df):
     """
     Plots results for Logistic Regression experiments using CV Scores.

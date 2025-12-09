@@ -16,8 +16,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "none",
             "scaler": null,
             "classifier": "LogisticRegression",
@@ -45,8 +45,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l2",
             "scaler": null,
             "classifier": "LogisticRegression",
@@ -74,8 +74,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l1",
             "scaler": null,
             "classifier": "LogisticRegression",
@@ -103,8 +103,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l2",
             "scaler": "StandardScaler",
             "classifier": "LogisticRegression",
@@ -132,8 +132,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l1",
             "scaler": "StandardScaler",
             "classifier": "LogisticRegression",
@@ -161,8 +161,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "none",
             "scaler": "StandardScaler",
             "classifier": "LogisticRegression",
@@ -190,8 +190,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l2",
             "scaler": "MinMaxScaler",
             "classifier": "LogisticRegression",
@@ -219,8 +219,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "l1",
             "scaler": "MinMaxScaler",
             "classifier": "LogisticRegression",
@@ -248,8 +248,8 @@
             "levels": [
                 1
             ],
-            "use_pca": false,
-            "pca_components": 8,
+            "use_pca": true,
+            "pca_components": 32,
             "normalization": "none",
             "scaler": "MinMaxScaler",
             "classifier": "LogisticRegression",
@@ -271,7 +271,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -299,7 +299,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -327,7 +327,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -355,7 +355,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -383,7 +383,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -411,7 +411,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -439,7 +439,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -467,7 +467,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1
@@ -495,7 +495,7 @@
             "dense": true,
             "step_size": 8,
             "scale": 8,
-            "codebook_size": 500,
+            "codebook_size": 200,
             "spatial_pyramid": false,
             "levels": [
                 1

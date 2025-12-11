@@ -124,8 +124,8 @@ if __name__ == "__main__":
                                     F.Resize(size=(224, 224)),
                                 ])
     
-    data_train = ImageFolder("~/data/Master/MIT_split/train", transform=transformation)
-    data_test = ImageFolder("~/data/Master/MIT_split/test", transform=transformation) 
+    data_train = ImageFolder("~/mcv/datasets/C3/2526/places_reduced/train", transform=transformation)
+    data_test = ImageFolder("~/mcv/datasets/C3/2526/places_reduced/val", transform=transformation) 
 
     train_loader = DataLoader(data_train, batch_size=256, pin_memory=True, shuffle=True, num_workers=8)
     test_loader = DataLoader(data_test, batch_size=128, pin_memory=True, shuffle=False, num_workers=8)

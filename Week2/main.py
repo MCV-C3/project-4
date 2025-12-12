@@ -111,6 +111,7 @@ def plot_computational_graph(model: torch.nn.Module, input_size: tuple, filename
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Week 2 MLP Experiment")
     parser.add_argument("--config", type=str, required=True, help="Path to JSON configuration file")
+    parser.add_argument("--dry-run", action="store_true", help="Run a single batch for testing")
     args = parser.parse_args()
 
     # Load configuration
@@ -181,6 +182,12 @@ if __name__ == "__main__":
     wandb.watch(model, log="all")
 
     for epoch in tqdm.tqdm(range(EPOCHS), desc="TRAINING THE MODEL"):
+        if args.dry_run:
+            print("Dry run: Running one epoch with limited batches...")
+            # Modify train/test to break early or just run one epoch and break
+            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
+            break
+        
         train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
         test_loss, test_accuracy = test(model, test_loader, criterion, device)
 

@@ -7,8 +7,10 @@
     "wandb_project": "week2",
     "wandb_entity": "c3-team4",
     "wandb_mode": "online",
-    "experiment_name": "baseline_run",
+    "experiment_name": "baseline_run_2",
     "model_params": {
-        "hidden_d": 300
+        "hidden_layers": [
+            300
+        ]
     }
 }

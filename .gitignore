@@ -5,3 +5,10 @@ computed_descriptors*/
 wandb
 *.txt
 .vscode
+
+# Week 2
+Week2/logs/
+Week2/experiments/
+# Week2/*.png
+# Week2/*.pth
+Week2/__pycache__/

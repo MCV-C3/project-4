@@ -21,6 +21,15 @@ class SimpleModel(nn.Module):
 
         self.activation = nn.ReLU()
 
+    def get_features(self, x):
+        """
+        Extracts features from the first hidden layer.
+        """
+        x = x.view(x.shape[0], -1)
+        x = self.layer1(x)
+        x = self.activation(x)
+        return x
+
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)

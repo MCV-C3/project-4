@@ -130,12 +130,13 @@ if __name__ == "__main__":
     train_loader = DataLoader(data_train, batch_size=256, pin_memory=True, shuffle=True, num_workers=8)
     test_loader = DataLoader(data_test, batch_size=128, pin_memory=True, shuffle=False, num_workers=8)
 
-    C, H, W = np.array(data_train[0][0]).shape
+    C, H, W = data_train[0][0].numpy().shape
+    num_classes = len(data_train.classes)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    model = SimpleModel(input_d=C*H*W, hidden_d=300, output_d=8)
+    model = SimpleModel(input_d=C*H*W, hidden_d=300, output_d=num_classes)
     plot_computational_graph(model, input_size=(1, C*H*W))  # Batch size of 1, input_dim=10
 
     model = model.to(device)

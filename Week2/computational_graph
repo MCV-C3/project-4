@@ -1,9 +1,9 @@
 digraph {
 	graph [size="12,12"]
 	node [align=left fontname=monospace fontsize=10 height=0.2 ranksep=0.1 shape=box style=filled]
-	140387795449504 [label="
- (1, 8)" fillcolor=darkolivegreen1]
-	140387789010832 [label="AddmmBackward0
+	139717091823264 [label="
+ (1, 11)" fillcolor=darkolivegreen1]
+	139716867808016 [label="AddmmBackward0
 --------------------------------
 alpha           :              1
 beta            :              1
@@ -11,19 +11,19 @@ mat1            : [saved tensor]
 mat1_sym_sizes  :       (1, 300)
 mat1_sym_strides:       (300, 1)
 mat2            : [saved tensor]
-mat2_sym_sizes  :       (300, 8)
+mat2_sym_sizes  :      (300, 11)
 mat2_sym_strides:       (1, 300)"]
-	140387789011120 -> 140387789010832
-	140388007506416 [label="output_layer.bias
- (8)" fillcolor=lightblue]
-	140388007506416 -> 140387789011120
-	140387789011120 [label=AccumulateGrad]
-	140387789011024 -> 140387789010832
-	140387789011024 [label="ReluBackward0
+	139716867808304 -> 139716867808016
+	139716867885952 [label="output_layer.bias
+ (11)" fillcolor=lightblue]
+	139716867885952 -> 139716867808304
+	139716867808304 [label=AccumulateGrad]
+	139716867808208 -> 139716867808016
+	139716867808208 [label="ReluBackward0
 ----------------------
 result: [saved tensor]"]
-	140387789010976 -> 140387789011024
-	140387789010976 [label="AddmmBackward0
+	139716867808160 -> 139716867808208
+	139716867808160 [label="AddmmBackward0
 --------------------------------
 alpha           :              1
 beta            :              1
@@ -33,17 +33,17 @@ mat1_sym_strides:       (300, 1)
 mat2            : [saved tensor]
 mat2_sym_sizes  :     (300, 300)
 mat2_sym_strides:       (1, 300)"]
-	140387789011264 -> 140387789010976
-	140388009274288 [label="layer2.bias
+	139716867808448 -> 139716867808160
+	139716867885792 [label="layer2.bias
  (300)" fillcolor=lightblue]
-	140388009274288 -> 140387789011264
-	140387789011264 [label=AccumulateGrad]
-	140387789011216 -> 140387789010976
-	140387789011216 [label="ReluBackward0
+	139716867885792 -> 139716867808448
+	139716867808448 [label=AccumulateGrad]
+	139716867808400 -> 139716867808160
+	139716867808400 [label="ReluBackward0
 ----------------------
 result: [saved tensor]"]
-	140387789011360 -> 140387789011216
-	140387789011360 [label="AddmmBackward0
+	139716867808544 -> 139716867808400
+	139716867808544 [label="AddmmBackward0
 --------------------------------
 alpha           :              1
 beta            :              1
@@ -53,31 +53,31 @@ mat1_sym_strides:             ()
 mat2            :           None
 mat2_sym_sizes  :  (150528, 300)
 mat2_sym_strides:    (1, 150528)"]
-	140387789011552 -> 140387789011360
-	140388009164400 [label="layer1.bias
+	139716867808736 -> 139716867808544
+	139717093331072 [label="layer1.bias
  (300)" fillcolor=lightblue]
-	140388009164400 -> 140387789011552
-	140387789011552 [label=AccumulateGrad]
-	140387789011504 -> 140387789011360
-	140387789011504 [label=TBackward0]
-	140387789011600 -> 140387789011504
-	140388009162960 [label="layer1.weight
+	139717093331072 -> 139716867808736
+	139716867808736 [label=AccumulateGrad]
+	139716867808688 -> 139716867808544
+	139716867808688 [label=TBackward0]
+	139716867808784 -> 139716867808688
+	139716878490080 [label="layer1.weight
  (300, 150528)" fillcolor=lightblue]
-	140388009162960 -> 140387789011600
-	140387789011600 [label=AccumulateGrad]
-	140387789010928 -> 140387789010976
-	140387789010928 [label=TBackward0]
-	140387789011648 -> 140387789010928
-	140387795450464 [label="layer2.weight
+	139716878490080 -> 139716867808784
+	139716867808784 [label=AccumulateGrad]
+	139716867808112 -> 139716867808160
+	139716867808112 [label=TBackward0]
+	139716867808832 -> 139716867808112
+	139717093330592 [label="layer2.weight
  (300, 300)" fillcolor=lightblue]
-	140387795450464 -> 140387789011648
-	140387789011648 [label=AccumulateGrad]
-	140387789011072 -> 140387789010832
-	140387789011072 [label=TBackward0]
-	140387789011456 -> 140387789011072
-	140388009275888 [label="output_layer.weight
- (8, 300)" fillcolor=lightblue]
-	140388009275888 -> 140387789011456
-	140387789011456 [label=AccumulateGrad]
-	140387789010832 -> 140387795449504
+	139717093330592 -> 139716867808832
+	139716867808832 [label=AccumulateGrad]
+	139716867808256 -> 139716867808016
+	139716867808256 [label=TBackward0]
+	139716867808640 -> 139716867808256
+	139716867885712 [label="output_layer.weight
+ (11, 300)" fillcolor=lightblue]
+	139716867885712 -> 139716867808640
+	139716867808640 [label=AccumulateGrad]
+	139716867808016 -> 139717091823264
 }

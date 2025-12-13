@@ -3,18 +3,38 @@ import torch.nn as nn
 import torch
 from typing import *
 
-class SimpleModel(nn.Module):
+class MLP(nn.Module):
 
-    def __init__(self, input_d: int, output_d: int, hidden_layers: List[int] = [300]):
-        super(SimpleModel, self).__init__()
+    def __init__(self, input_d: int, output_d: int, hidden_layers: List[int] = [300], dropout: float = 0.0, activation: str = "leaky_relu"):
+        super(MLP, self).__init__()
 
         self.layers = nn.ModuleList()
-        self.activation = nn.ReLU()
+        
+        # Select activation function
+        if activation.lower() == "relu":
+            act_fn = nn.ReLU()
+        elif activation.lower() == "leaky_relu":
+            act_fn = nn.LeakyReLU(0.1)
+        elif activation.lower() == "tanh":
+            act_fn = nn.Tanh()
+        elif activation.lower() == "gelu":
+            act_fn = nn.GELU()
+        elif activation.lower() == "sigmoid":
+            act_fn = nn.Sigmoid()
+        else:
+            raise ValueError(f"Activation {activation} not supported.")
         
         # Build hidden layers
         current_dim = input_d
         for hidden_dim in hidden_layers:
-            self.layers.append(nn.Linear(current_dim, hidden_dim))
+            # Block: Linear -> BatchNorm -> Activation -> Dropout
+            block = nn.Sequential(
+                nn.Linear(current_dim, hidden_dim),
+                nn.BatchNorm1d(hidden_dim),
+                act_fn,
+                nn.Dropout(p=dropout)
+            )
+            self.layers.append(block)
             current_dim = hidden_dim
             
         # Output layer
@@ -25,7 +45,6 @@ class SimpleModel(nn.Module):
         
         for layer in self.layers:
             x = layer(x)
-            x = self.activation(x)
             
         x = self.output_layer(x)
         return x
@@ -44,9 +63,7 @@ class SimpleModel(nn.Module):
 
         for i, layer in enumerate(self.layers):
             x = layer(x)
-            x = self.activation(x)
             if i == layer_index:
                 return x
         
-        # If we reach here, it shouldn't happen due to the check above
         return x

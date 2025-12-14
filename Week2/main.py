@@ -110,10 +110,12 @@ def plot_computational_graph(model: torch.nn.Module, input_size: tuple, filename
 def get_optimizer(model, optimizer_name, lr, **kwargs):
     if optimizer_name.lower() == 'adam':
         return optim.Adam(model.parameters(), lr=lr, **kwargs)
-    elif optimizer_name.lower() == 'sgd':
-        return optim.SGD(model.parameters(), lr=lr, **kwargs)
     elif optimizer_name.lower() == 'adagrad':
         return optim.Adagrad(model.parameters(), lr=lr, **kwargs)
+    elif optimizer_name.lower() == 'adamw':
+        return optim.AdamW(model.parameters(), lr=lr, **kwargs)
+    elif optimizer_name.lower() == 'sgd':
+        return optim.SGD(model.parameters(), lr=lr, momentum=0.9, nesterov=True, **kwargs)
     else:
         raise ValueError(f"Optimizer {optimizer_name} not supported.")
 

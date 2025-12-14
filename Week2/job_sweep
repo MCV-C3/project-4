@@ -6,4 +6,4 @@
 #SBATCH -o logs/sweep_%u_%j.out
 #SBATCH -e logs/sweep_%u_%j.err
 
-python run_sweep.py --config configs/sweep_layers.json
+python run_sweep.py --config configs/sweep_optimizer_lr.json

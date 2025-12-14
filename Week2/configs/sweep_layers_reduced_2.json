@@ -23,80 +23,7 @@
     },
     "variations": [
         {
-            "name": "L1_Medium",
-            "model_params": {
-                "hidden_layers": [
-                    512
-                ]
-            }
-        },
-        {
-            "name": "L1_Wide",
-            "model_params": {
-                "hidden_layers": [
-                    1024
-                ]
-            }
-        },
-        {
-            "name": "L2_Constant",
-            "model_params": {
-                "hidden_layers": [
-                    512,
-                    512
-                ]
-            }
-        },
-        {
-            "name": "L2_Pyramid",
-            "model_params": {
-                "hidden_layers": [
-                    512,
-                    128
-                ]
-            }
-        },
-        {
-            "name": "L2_InvPyramid",
-            "model_params": {
-                "hidden_layers": [
-                    128,
-                    512
-                ]
-            }
-        },
-        {
-            "name": "L3_Constant",
-            "model_params": {
-                "hidden_layers": [
-                    512,
-                    512,
-                    512
-                ]
-            }
-        },
-        {
-            "name": "L3_Pyramid",
-            "model_params": {
-                "hidden_layers": [
-                    1024,
-                    512,
-                    256
-                ]
-            }
-        },
-        {
-            "name": "L3_Diamond",
-            "model_params": {
-                "hidden_layers": [
-                    128,
-                    512,
-                    128
-                ]
-            }
-        },
-        {
-            "name": "L4_Constant",
+            "name": "L4_Constant_exec2",
             "model_params": {
                 "hidden_layers": [
                     256,
@@ -107,7 +34,7 @@
             }
         },
         {
-            "name": "L4_Pyramid",
+            "name": "L4_Pyramid_exec2",
             "model_params": {
                 "hidden_layers": [
                     1024,
@@ -115,11 +42,10 @@
                     256,
                     128
                 ]
-                ]
             }
         },
         {
-            "name": "L4_Diamond",
+            "name": "L4_Diamond_exec2",
             "model_params": {
                 "hidden_layers": [
                     128,
@@ -130,7 +56,7 @@
             }
         },
         {
-            "name": "L5_Constant",
+            "name": "L5_Constant_exec2",
             "model_params": {
                 "hidden_layers": [
                     256,
@@ -142,7 +68,7 @@
             }
         },
         {
-            "name": "L5_Pyramid",
+            "name": "L5_Pyramid_exec2",
             "model_params": {
                 "hidden_layers": [
                     2048,
@@ -154,7 +80,7 @@
             }
         },
         {
-            "name": "L5_Diamond",
+            "name": "L5_Diamond_exec2",
             "model_params": {
                 "hidden_layers": [
                     128,

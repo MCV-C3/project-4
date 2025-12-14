@@ -1,0 +1,61 @@
+{
+    "sweep_name": "activation_function_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "lr": 0.001,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adam",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "scheduler_name": null,
+        "scheduler_params": {},
+        "img_size": 64,
+        "model_params": {
+            "dropout": 0.5,
+            "hidden_layers": [
+                    1024,
+                    512,
+                    256,
+                    128
+                ]
+        }
+    },
+    "variations": [
+        {
+            "name": "Leaky_ReLU",
+            "model_params": {
+                "activation": "leaky_relu"
+            }
+        },
+        {
+            "name": "ReLU",
+            "model_params": {
+                "activation": "relu"
+            }
+        },
+        {
+            "name": "Tanh",
+            "model_params": {
+                "activation": "tanh"
+            }
+        },
+        {
+            "name": "GELU",
+            "model_params": {
+                "activation": "gelu"
+            }
+        },
+        {
+            "name": "Sigmoid",
+            "model_params": {
+                "activation": "sigmoid"
+            }
+        }
+    ]
+}

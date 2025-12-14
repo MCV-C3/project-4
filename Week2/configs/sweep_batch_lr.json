@@ -1,0 +1,70 @@
+{
+    "sweep_name": "batch_lr_study_L4_Pyramid",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "lr": 1e-3,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "img_size": 64,
+        "model_params": {
+            "hidden_layers": [
+                1024,
+                512,
+                256,
+                128
+            ],
+            "dropout": 0.5,
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "BS128_LR1e-3",
+            "batch_size": 128,
+            "lr": 1e-3
+        },
+        {
+            "name": "BS128_LR3e-3",
+            "batch_size": 128,
+            "lr": 3e-3
+        },
+        {
+            "name": "BS256_LR1e-3",
+            "batch_size": 256,
+            "lr": 1e-3
+        },
+        {
+            "name": "BS256_LR3e-3",
+            "batch_size": 256,
+            "lr": 3e-3
+        },
+        {
+            "name": "BS512_LR1e-3",
+            "batch_size": 512,
+            "lr": 1e-3
+        },
+        {
+            "name": "BS512_LR3e-3",
+            "batch_size": 512,
+            "lr": 3e-3
+        },
+        {
+            "name": "BS1024_LR1e-3",
+            "batch_size": 1024,
+            "lr": 1e-3
+        },
+        {
+            "name": "BS1024_LR3e-3",
+            "batch_size": 1024,
+            "lr": 3e-3
+        }
+    ]
+}

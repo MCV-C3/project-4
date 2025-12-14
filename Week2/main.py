@@ -153,6 +153,7 @@ if __name__ == "__main__":
     NUM_WORKERS = config.get("num_workers", 4)
     MODEL_PARAMS = config.get("model_params", {"hidden_layers": [300]})
     IMG_SIZE = config.get("img_size", 224) # New param
+    DATA_AUGMENTATION = config.get("data_augmentation", True)
     
     # Optimizer & Scheduler config
     OPTIMIZER_NAME = config.get("optimizer_name", "adam")
@@ -184,20 +185,30 @@ if __name__ == "__main__":
         print("WARNING: Training on CPU. This might be slow.")
 
     # Data Augmentation for Training
-    train_transform = F.Compose([
+    train_transforms_list = [
         F.ToImage(),
         F.ToDtype(torch.float32, scale=True),
         F.Resize(size=(IMG_SIZE, IMG_SIZE)), # Resize first
-        F.RandomHorizontalFlip(p=0.5),
-        F.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-        F.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    ])
+    ]
+
+    if DATA_AUGMENTATION:
+        train_transforms_list.extend([
+            F.RandomHorizontalFlip(p=0.5),
+            F.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+            F.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        ])
+
+    # Normalization always applied
+    train_transforms_list.append(F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+
+    train_transform = F.Compose(train_transforms_list)
 
     # Standard Transform for Validation/Test
     val_transform = F.Compose([
         F.ToImage(),
         F.ToDtype(torch.float32, scale=True),
         F.Resize(size=(IMG_SIZE, IMG_SIZE)),
+        F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     
     print(f"Loading data from {DATASET_PATH}")

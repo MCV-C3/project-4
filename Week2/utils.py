@@ -1,8 +1,40 @@
 #from __future__ import print_function
-import os,sys
+import torch.nn as nn
+import os
 import numpy as np
 from sklearn.feature_extraction import image
 from PIL import Image
+from torch.utils.data import Dataset
+import torch
+import torchvision.transforms.v2  as F
+
+class InMemoryDataset(Dataset):
+    def __init__(self, source: Dataset, device, transform=None):
+        self.images = [] 
+        self.targets = []
+        self.transform = transform
+        self.device = device
+        
+        imgs = []
+        targets = []
+
+        for img, target in source:
+            t = F.functional.pil_to_tensor(img)
+            imgs.append(t)
+            targets.append(target)
+
+        self.images = torch.stack(imgs).to(device)
+        self.targets = torch.tensor(targets).to(device)
+        self.classes = source.classes
+            
+    def __len__(self):
+        return len(self.images)
+    
+    def __getitem__(self, idx):
+        if self.transform:
+            return self.transform(self.images[idx]), self.targets[idx]
+        return self.images[idx], self.targets[idx]
+
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -34,3 +66,22 @@ def generate_image_patches_db(in_directory,out_directory,patch_size=64):
           patch = Image.fromarray(patch)
           patch.save(os.path.join(out_directory,split_dir,class_dir,imname.split(',')[0]+'_'+str(i)+'.jpg'))
   print('\n')
+
+
+def get_patches(img_tensor, patch_size, stride):
+    """
+    Extracts patches using Unfold.
+    Input: (B, C, H, W) -> e.g. (256, 3, 224, 224)
+    Output: (B * Num_Patches, C, patch_size, patch_size) -> e.g. (4096, 3, 64, 64)
+    """
+    # Unfold extracts sliding local blocks from a batched input tensor
+    unfold = nn.Unfold(kernel_size=patch_size, stride=stride)
+    
+    # Output shape: (Batch, C * PatchH * PatchW, Num_Patches)
+    unfolded = unfold(img_tensor)
+    
+    # Reshape to be (Total_Patches, Channels, PatchH, PatchW)
+    # patches = unfolded.transpose(1, 2).reshape(-1, 3, patch_size, patch_size)
+    patches = unfolded.permute(0, 2, 1).contiguous().view(-1, 3, patch_size, patch_size)
+
+    return patches

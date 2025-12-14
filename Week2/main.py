@@ -7,6 +7,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 from models import MLP
+from utils import get_patches
 import torchvision.transforms.v2  as F
 from torchviz import make_dot
 import tqdm
@@ -16,13 +17,24 @@ import os
 import wandb
 
 # Train function
-def train(model, dataloader, criterion, optimizer, device):
+def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, patch_size=112):
     model.train()
     train_loss = 0.0
     correct, total = 0, 0
 
     for inputs, labels in dataloader:
         inputs, labels = inputs.to(device), labels.to(device)
+
+        # Store original batch size to calculate repetition factor later
+        original_batch_size = inputs.size(0)
+
+        if patch_enabled:
+            # Patches shape: (4096, 3, 64, 64)
+            inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
+
+            # Expand Labels 
+            num_patches_per_img = inputs.size(0) // original_batch_size
+            labels = labels.repeat_interleave(num_patches_per_img)
 
         # Forward pass
         outputs = model(inputs)
@@ -44,7 +56,7 @@ def train(model, dataloader, criterion, optimizer, device):
     return avg_loss, accuracy
 
 
-def test(model, dataloader, criterion, device):
+def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggregation):
     model.eval()
     test_loss = 0.0
     correct, total = 0, 0
@@ -53,8 +65,31 @@ def test(model, dataloader, criterion, device):
         for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # Forward pass
-            outputs = model(inputs)
+            # Store original batch size to calculate repetition factor later
+            original_batch_size = inputs.size(0)
+
+            if patch_enabled:
+                # Patches shape: (4096, 3, 64, 64)
+                inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
+
+                # Forward pass
+                outputs = model(inputs)
+
+                num_patches = inputs.size(0) // original_batch_size
+                outputs_grouped = outputs.view(original_batch_size, num_patches, -1)
+                
+                # AVERAGE Pooling: Average the logits/probabilities across all patches
+                if aggregation == "mean":
+                    outputs = outputs_grouped.mean(dim=1)
+                elif aggregation == "max":
+                    outputs = outputs_grouped.max(dim=1)
+                elif aggregation == "median":
+                    outputs = outputs_grouped.median(dim=1)
+                else:
+                    pass # VOTING??
+            else:
+                outputs = model(inputs)
+            
             loss = criterion(outputs, labels)
 
             # Track loss and accuracy
@@ -154,6 +189,9 @@ if __name__ == "__main__":
     MODEL_PARAMS = config.get("model_params", {"hidden_layers": [300]})
     IMG_SIZE = config.get("img_size", 224) # New param
     DATA_AUGMENTATION = config.get("data_augmentation", True)
+    PATCH_ENABLE = config.get("patch_enable", False)
+    PATCH_SIZE = config.get("patch_size", 112) # 112, 56, 28
+    AGGREGATION = config.set("mean", "mean")
     
     # Optimizer & Scheduler config
     OPTIMIZER_NAME = config.get("optimizer_name", "adam")
@@ -199,7 +237,7 @@ if __name__ == "__main__":
         ])
 
     # Normalization always applied
-    train_transforms_list.append(F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+    # train_transforms_list.append(F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
 
     train_transform = F.Compose(train_transforms_list)
 
@@ -208,7 +246,7 @@ if __name__ == "__main__":
         F.ToImage(),
         F.ToDtype(torch.float32, scale=True),
         F.Resize(size=(IMG_SIZE, IMG_SIZE)),
-        F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     
     print(f"Loading data from {DATASET_PATH}")
@@ -231,7 +269,10 @@ if __name__ == "__main__":
     C, H, W = data_train[0][0].numpy().shape
     num_classes = len(data_train.classes)
 
-    model = MLP(input_d=C*H*W, output_d=num_classes, **MODEL_PARAMS)
+    if PATCH_ENABLE:
+        model = MLP(input_d=C*PATCH_SIZE*PATCH_SIZE, output_d=num_classes, **MODEL_PARAMS)
+    else:    
+        model = MLP(input_d=C*H*W, output_d=num_classes, **MODEL_PARAMS)
     
     model = model.to(device)
     
@@ -253,16 +294,16 @@ if __name__ == "__main__":
     for epoch in tqdm.tqdm(range(EPOCHS), desc="TRAINING THE MODEL"):
         if args.dry_run:
             print("Dry run: Running one epoch with limited batches...")
-            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
-            val_loss, val_accuracy = test(model, val_loader, criterion, device)
+            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
+            val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION)
             train_losses.append(train_loss)
             train_accuracies.append(train_accuracy)
             val_losses.append(val_loss)
             val_accuracies.append(val_accuracy)
             break
         
-        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
-        val_loss, val_accuracy = test(model, val_loader, criterion, device) # Using test function for validation
+        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
+        val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION) # Using test function for validation
         
         # Step the scheduler
         if scheduler:
@@ -318,6 +359,10 @@ if __name__ == "__main__":
         "img_size": IMG_SIZE,
         "model_params": MODEL_PARAMS
     }
+    if PATCH_ENABLE:
+        results["patch_size"] = PATCH_SIZE
+        results["aggregation"] = AGGREGATION
+
     with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:
         json.dump(results, f, indent=4)
     print(f"Results saved to {os.path.join(OUTPUT_DIR, 'results.json')}")

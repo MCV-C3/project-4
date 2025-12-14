@@ -6,4 +6,5 @@
 #SBATCH -o logs/sweep_%u_%j.out
 #SBATCH -e logs/sweep_%u_%j.err
 
-python run_sweep.py --config configs/sweep_batch_lr.json
+python run_sweep.py --config configs/sweep_dropout.json
+ 

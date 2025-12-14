@@ -1,0 +1,61 @@
+{
+    "sweep_name": "scheduler_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "lr": 1e-3,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "img_size": 64,
+        "model_params": {
+            "hidden_layers": [
+                1024,
+                512,
+                256,
+                128
+            ],
+            "dropout": 0.5, ##### change
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "Scheduler_ReduceLROnPlateau",
+            "scheduler_name": "reducelronplateau",
+            "scheduler_params": {
+                "mode": "min",
+                "factor": 0.1,
+                "patience": 5,
+                "min_lr": 1e-6
+            }
+        },
+        {
+            "name": "CosineAnnealingLR",
+            "scheduler_name": "cosineannealinglr",
+            "scheduler_params": {
+            "T_max": 40,
+            "eta_min": 1e-6
+            }
+        },
+        {
+            "name": "StepLR",
+            "scheduler_name": "steplr",
+            "scheduler_params": {
+            "step_size": 10,
+            "gamma": 0.1
+            }
+        },
+        {
+            "name": "No_Scheduler",
+            "scheduler_name": null,
+            "scheduler_params": {}
+        }
+    ]
+}

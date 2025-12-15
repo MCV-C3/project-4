@@ -12,3 +12,5 @@ Week2/experiments/
 # Week2/*.png
 # Week2/*.pth
 Week2/__pycache__/
+svm_experiments/
+Week2/best_models/

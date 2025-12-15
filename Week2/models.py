@@ -49,21 +49,26 @@ class MLP(nn.Module):
         x = self.output_layer(x)
         return x
 
-    def get_features(self, x, layer_index: int = 0):
+    def get_features(self, x, layer_index: Union[int, str] = 0):
         """
         Extracts features from a specific hidden layer.
         Args:
             x: Input tensor
-            layer_index: Index of the hidden layer to extract from (0-indexed)
+            layer_index: Index of the hidden layer (0-indexed) or "output"
         """
         x = x.reshape(x.shape[0], -1)
         
-        if layer_index >= len(self.layers):
-            raise ValueError(f"Layer index {layer_index} out of bounds. Model has {len(self.layers)} hidden layers.")
-
+        # Determine target index
+        # If "output", we go through all layers + output layer
+        target_is_output = (layer_index == "output") or (layer_index == len(self.layers))
+        
         for i, layer in enumerate(self.layers):
             x = layer(x)
-            if i == layer_index:
+            if not target_is_output and i == layer_index:
                 return x
         
-        return x
+        if target_is_output:
+            x = self.output_layer(x)
+            return x
+            
+        raise ValueError(f"Layer index {layer_index} out of bounds.")

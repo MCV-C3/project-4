@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH -n 10
+#SBATCH --mem 24G
+#SBATCH -p mlow
+#SBATCH --gres gpu:1
+#SBATCH -o logs/svm/svm_%u_%j.out
+#SBATCH -e logs/svm/svm_%u_%j.err
+
+python svm_part1.py --svm_config configs/svm_configs/SVM_C_sweep_ImgSize_16.json
+# python svm_part1.py --svm_config configs/svm_configs/SVM_C_sweep_ImgSize_32.json

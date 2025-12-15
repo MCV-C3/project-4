@@ -9,7 +9,7 @@
     "wandb_project": "week2",
     "wandb_entity": "c3-team4",
     "wandb_mode": "online",
-    "experiment_name": "L4_Pyramid",
+    "experiment_name": "ImgSize_16",
     "optimizer_name": "adamw",
     "optimizer_params": {
         "weight_decay": 0

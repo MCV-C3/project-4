@@ -52,7 +52,7 @@ def run_sweep(sweep_config_path, dry_run=False):
             
         # Run main.py
         # Using sys.executable to ensure we use the same python interpreter
-        cmd = [sys.executable, "main.py", "--config", temp_config_path]
+        cmd = [sys.executable, "main_part1.py", "--config", temp_config_path]
         
         # Optional: Add dry-run for testing logic
         if dry_run:

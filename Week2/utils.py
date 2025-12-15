@@ -4,6 +4,37 @@ import os
 import numpy as np
 from sklearn.feature_extraction import image
 from PIL import Image
+from torch.utils.data import Dataset
+import torch
+import torchvision.transforms.v2  as F
+
+class InMemoryDataset(Dataset):
+    def __init__(self, source: Dataset, device, transform=None):
+        self.images = [] 
+        self.targets = []
+        self.transform = transform
+        self.device = device
+        
+        imgs = []
+        targets = []
+
+        for img, target in source:
+            t = F.functional.pil_to_tensor(img)
+            imgs.append(t)
+            targets.append(target)
+
+        self.images = torch.stack(imgs).to(device)
+        self.targets = torch.tensor(targets).to(device)
+        self.classes = source.classes
+            
+    def __len__(self):
+        return len(self.images)
+    
+    def __getitem__(self, idx):
+        if self.transform:
+            return self.transform(self.images[idx]), self.targets[idx]
+        return self.images[idx], self.targets[idx]
+
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""

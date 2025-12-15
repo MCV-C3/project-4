@@ -1,40 +1,29 @@
 {
-  "experiment_name": "patches_optimized",
-  "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
-
-  "patch_enable": true,
-  "patch_size": 56,
-  "aggregation": "mean",
-  "img_size": 64,
-
-  "batch_size": 256,
-  "epochs": 50,
-  "lr": 1e-3,
-  "num_workers": 4,
-  "data_augmentation": false,
-  "use_normalization": false,
-
-  "early_stopping": false,
-  "early_stopping_patience": 12,
-
-  "model_params": {
-    "hidden_layers": [1024, 512, 256, 128],
-    "dropout": 0.5,
-    "activation": "leaky_relu"
-  },
-
-  "optimizer_name": "adamw",
-  "optimizer_params": {
-    "weight_decay": 1e-4
-  },
-
-  "scheduler_name": "cosineannealinglr",
-  "scheduler_params": {
-    "T_max": 60,
-    "eta_min": 1e-6
-  },
-
-  "wandb_project": "week2-patches-optimized",
-  "wandb_entity": "c3-team4",
-  "wandb_mode": "online"
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+    "batch_size": 256,
+    "epochs": 40,
+    "lr": 0.001,
+    "num_workers": 4,
+    "wandb_project": "week2-patches",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    "experiment_name": "baseline_patches",
+    "optimizer_name": "adam",
+    "optimizer_params": {
+        "weight_decay": 1e-4
+    },
+    "img_size": 224,
+    "patch_enable": true,
+    "patch_size": 112,
+    "aggregation": "mean",
+    "model_params": {
+        "hidden_layers": [
+            1024,
+            512,
+            256,
+            128
+        ],
+        "dropout": 0.5,
+        "activation": "leaky_relu"
+    }
 }

@@ -7,7 +7,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 from models import MLP
-from utils import get_patches, InMemoryDataset
+from utils import get_patches, InMemoryDataset, EarlyStopping
 import torchvision.transforms.v2  as F
 from torchviz import make_dot
 import tqdm
@@ -17,24 +17,13 @@ import os
 import wandb
 
 # Train function
-def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, patch_size=112):
+def train(model, dataloader, criterion, optimizer, device):
     model.train()
     train_loss = 0.0
     correct, total = 0, 0
 
     for inputs, labels in dataloader:
         inputs, labels = inputs.to(device), labels.to(device)
-
-        # Store original batch size to calculate repetition factor later
-        original_batch_size = inputs.size(0)
-
-        if patch_enabled:
-            # Patches shape: (4096, 3, 64, 64)
-            inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
-
-            # Expand Labels 
-            num_patches_per_img = inputs.size(0) // original_batch_size
-            labels = labels.repeat_interleave(num_patches_per_img)
 
         # Forward pass
         outputs = model(inputs)
@@ -56,7 +45,7 @@ def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, 
     return avg_loss, accuracy
 
 
-def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggregation):
+def test(model, dataloader, criterion, device):
     model.eval()
     test_loss = 0.0
     correct, total = 0, 0
@@ -65,30 +54,8 @@ def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggreg
         for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # Store original batch size to calculate repetition factor later
-            original_batch_size = inputs.size(0)
-
-            if patch_enabled:
-                # Patches shape: (4096, 3, 64, 64)
-                inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
-
-                # Forward pass
-                outputs = model(inputs)
-
-                num_patches = inputs.size(0) // original_batch_size
-                outputs_grouped = outputs.view(original_batch_size, num_patches, -1)
-                
-                if aggregation == "mean":
-                    outputs = outputs_grouped.mean(dim=1)
-                elif aggregation == "max":
-                    outputs = outputs_grouped.max(dim=1)
-                elif aggregation == "median":
-                    outputs = outputs_grouped.median(dim=1)
-                else:
-                    pass # VOTING??
-            else:
-                outputs = model(inputs)
-            
+            # Forward pass
+            outputs = model(inputs)
             loss = criterion(outputs, labels)
 
             # Track loss and accuracy
@@ -188,9 +155,8 @@ if __name__ == "__main__":
     MODEL_PARAMS = config.get("model_params", {"hidden_layers": [300]})
     IMG_SIZE = config.get("img_size", 224) # New param
     DATA_AUGMENTATION = config.get("data_augmentation", True)
-    PATCH_ENABLE = config.get("patch_enable", False)
-    PATCH_SIZE = config.get("patch_size", 112) # 112, 56, 28
-    AGGREGATION = config.get("mean", "mean")
+    EARLY_STOPPING_PATIENCE = config.get("early_stopping_patience", None)
+    EARLY_STOPPING_DELTA = config.get("early_stopping_delta", 0.0)
     
     # Optimizer & Scheduler config
     OPTIMIZER_NAME = config.get("optimizer_name", "adam")
@@ -223,7 +189,7 @@ if __name__ == "__main__":
 
     # Data Augmentation for Training
     train_transforms_list = [
-        # F.ToImage(),
+        F.ToImage(),
         F.ToDtype(torch.float32, scale=True),
         F.Resize(size=(IMG_SIZE, IMG_SIZE)), # Resize first
     ]
@@ -236,44 +202,39 @@ if __name__ == "__main__":
         ])
 
     # Normalization always applied
-    # train_transforms_list.append(F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+    train_transforms_list.append(F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
 
     train_transform = F.Compose(train_transforms_list)
 
     # Standard Transform for Validation/Test
     val_transform = F.Compose([
-        # F.ToImage(),
+        F.ToImage(),
         F.ToDtype(torch.float32, scale=True),
         F.Resize(size=(IMG_SIZE, IMG_SIZE)),
-        # F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     
     print(f"Loading data from {DATASET_PATH}")
     # Using 'train' and 'val' subfolders
     # Original 'train' folder is loaded as FULL training set
-    # data_train = ImageFolder(os.path.join(DATASET_PATH, "train"), transform=train_transform)
-    data_train = InMemoryDataset(ImageFolder(os.path.join(DATASET_PATH, "train")), device=device, transform=train_transform)
+    data_train = ImageFolder(os.path.join(DATASET_PATH, "train"), transform=train_transform)
     
     # Validation folder used as Test/Reporting set
-    # data_val = ImageFolder(os.path.join(DATASET_PATH, "val"), transform=val_transform)
-    data_val = InMemoryDataset(ImageFolder(os.path.join(DATASET_PATH, "val")), device=device, transform=val_transform)
+    data_val = ImageFolder(os.path.join(DATASET_PATH, "val"), transform=val_transform)
     
     print(f"Full Training Set: {len(data_train)} images")
     print(f"Test/Validation Set: {len(data_val)} images")
     
-    train_loader = DataLoader(data_train, batch_size=BATCH_SIZE, pin_memory=False, shuffle=True, num_workers=0)
-    val_loader = DataLoader(data_val, batch_size=BATCH_SIZE, pin_memory=False, shuffle=False, num_workers=0)
+    train_loader = DataLoader(data_train, batch_size=BATCH_SIZE, pin_memory=True, shuffle=True, num_workers=NUM_WORKERS)
+    val_loader = DataLoader(data_val, batch_size=BATCH_SIZE, pin_memory=True, shuffle=False, num_workers=NUM_WORKERS)
     # We won't use test_loader in the training loop loop typically, unless we want to see test perfromance too.
     # But methodology says: Tune on Val, Report on Test.
     # For now, let's just log Validation performance.
 
-    C, H, W = data_train[0][0].shape
+    C, H, W = data_train[0][0].numpy().shape
     num_classes = len(data_train.classes)
 
-    if PATCH_ENABLE:
-        model = MLP(input_d=C*PATCH_SIZE*PATCH_SIZE, output_d=num_classes, **MODEL_PARAMS)
-    else:    
-        model = MLP(input_d=C*H*W, output_d=num_classes, **MODEL_PARAMS)
+    model = MLP(input_d=C*H*W, output_d=num_classes, **MODEL_PARAMS)
     
     model = model.to(device)
     
@@ -292,24 +253,38 @@ if __name__ == "__main__":
     
     wandb.watch(model, log="all")
 
+    # Initialize Early Stopping
+    early_stopping = None
+    if EARLY_STOPPING_PATIENCE is not None:
+        checkpoint_name = os.path.basename(EXPERIMENT_NAME)
+        early_stopping = EarlyStopping(patience=EARLY_STOPPING_PATIENCE, verbose=True, delta=EARLY_STOPPING_DELTA, path=os.path.join(OUTPUT_DIR, f"{checkpoint_name}_checkpoint.pt"))
+
+
+
+
     for epoch in tqdm.tqdm(range(EPOCHS), desc="TRAINING THE MODEL"):
         if args.dry_run:
             print("Dry run: Running one epoch with limited batches...")
-            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
-            val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION)
+            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
+            val_loss, val_accuracy = test(model, val_loader, criterion, device)
             train_losses.append(train_loss)
             train_accuracies.append(train_accuracy)
             val_losses.append(val_loss)
             val_accuracies.append(val_accuracy)
             break
         
-        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
-        val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION) # Using test function for validation
+        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
+        val_loss, val_accuracy = test(model, val_loader, criterion, device) # Using test function for validation
         
         # Step the scheduler
         if scheduler:
             if isinstance(scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(val_loss)
+            elif SCHEDULER_NAME.lower() == 'cosineannealinglr':
+                # Check if we reached T_max
+                t_max = SCHEDULER_PARAMS.get('T_max', EPOCHS)
+                if epoch < t_max:
+                    scheduler.step()
             else:
                 scheduler.step()
                 
@@ -333,6 +308,24 @@ if __name__ == "__main__":
             "val_accuracy": val_accuracy,
             "learning_rate": current_lr
         })
+
+        if early_stopping:
+            previous_best = early_stopping.best_score
+            early_stopping(val_loss, model)
+            
+            if early_stopping.best_score != previous_best:
+                print(f"Model saved at epoch {epoch + 1} with val_loss: {val_loss:.4f}")
+            
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+    # Load the best model saved by early stopping
+    if early_stopping and not args.dry_run:
+        model.load_state_dict(torch.load(os.path.join(OUTPUT_DIR, f"{checkpoint_name}_checkpoint.pt")))
+
+
+
 
     # Plot results
     # Plot results
@@ -360,10 +353,6 @@ if __name__ == "__main__":
         "img_size": IMG_SIZE,
         "model_params": MODEL_PARAMS
     }
-    if PATCH_ENABLE:
-        results["patch_size"] = PATCH_SIZE
-        results["aggregation"] = AGGREGATION
-
     with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:
         json.dump(results, f, indent=4)
     print(f"Results saved to {os.path.join(OUTPUT_DIR, 'results.json')}")

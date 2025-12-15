@@ -1,0 +1,44 @@
+{
+    "sweep_name": "data_aug_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 80,
+        "lr": 1e-3,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "optimizer_params": {
+            "weight_decay": 0
+        },
+        "img_size": 64,
+        "data_augmentation": true,
+        "model_params": {
+            "hidden_layers": [
+                1024,
+                512,
+                256,
+                128
+            ],
+            "dropout": 0.1,
+            "activation": "leaky_relu"
+        },
+        "scheduler_name": "cosineannealinglr",
+        "scheduler_params": {
+            "T_max": 80,
+            "eta_min": 1e-6
+        }
+    },
+    "variations": [
+        {
+            "name": "Augmentation_OFF",
+            "data_augmentation": false
+        },
+        {
+            "name": "Augmentation_ON",
+            "data_augmentation": true
+        }
+    ]
+}

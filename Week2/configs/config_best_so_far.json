@@ -1,8 +1,10 @@
 {
     "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
     "batch_size": 256,
-    "epochs": 40,
+    "epochs": 200,
     "lr": 1e-3,
+    "early_stopping_patience": 15,
+    "early_stopping_delta": 0.0001,
     "num_workers": 4,
     "wandb_project": "week2",
     "wandb_entity": "c3-team4",
@@ -10,9 +12,15 @@
     "experiment_name": "L4_Pyramid",
     "optimizer_name": "adamw",
     "optimizer_params": {
-        "weight_decay": 1e-4
+        "weight_decay": 0
     },
-    "img_size": 64,
+    "img_size": 16,
+    "data_augmentation": true,
+    "scheduler_name": "cosineannealinglr",
+    "scheduler_params": {
+        "T_max": 80,
+        "eta_min": 1e-6
+    },
     "model_params": {
         "hidden_layers": [
             1024,
@@ -20,7 +28,7 @@
             256,
             128
         ],
-        "dropout": 0.5,
+        "dropout": 0.1,
         "activation": "leaky_relu"
     }
 }

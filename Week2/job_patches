@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -n 4
+#SBATCH --mem 24G
+#SBATCH -p mhigh
+#SBATCH --gres gpu:1
+#SBATCH -o logs/baselinepatch%u_%j.out
+#SBATCH -e logs/baselinepatch%u_%j.err
+
+python main.py --config configs/config_baseline_patch.json

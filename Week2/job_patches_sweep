@@ -6,4 +6,4 @@
 #SBATCH -o logs/baselinepatch%u_%j.out
 #SBATCH -e logs/baselinepatch%u_%j.err
 
-python main_part2.py --config configs/config_baseline_patch.json
+python run_sweep.py --config configs/sweep_patching.json

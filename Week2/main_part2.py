@@ -81,9 +81,9 @@ def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggreg
                 if aggregation == "mean":
                     outputs = outputs_grouped.mean(dim=1)
                 elif aggregation == "max":
-                    outputs = outputs_grouped.max(dim=1)
+                    outputs = outputs_grouped.max(dim=1).values
                 elif aggregation == "median":
-                    outputs = outputs_grouped.median(dim=1)
+                    outputs = outputs_grouped.median(dim=1).values
                 else:
                     pass # VOTING??
             else:
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     DATA_AUGMENTATION = config.get("data_augmentation", True)
     PATCH_ENABLE = config.get("patch_enable", False)
     PATCH_SIZE = config.get("patch_size", 112) # 112, 56, 28
-    AGGREGATION = config.get("mean", "mean")
+    AGGREGATION = config.get("aggregation", "mean")
     
     # Optimizer & Scheduler config
     OPTIMIZER_NAME = config.get("optimizer_name", "adam")

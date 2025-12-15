@@ -1,0 +1,103 @@
+{
+    "sweep_name": "optimizer_learning_rate_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "num_workers": 4,
+        "wandb_project": "week2-patches",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "scheduler_name": null,
+        "scheduler_params": {},
+        "img_size": 224,
+        "patch_enable": true,
+        "patch_size": 112,
+        "aggregation": "mean",
+        "model_params": {
+            "dropout": 0.5,
+            "hidden_layers": [
+                    1024,
+                    512,
+                    256,
+                    128
+                ],
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "AdamW_LR_1e-4",
+            "optimizer_name": "adamw",
+            "lr": 1e-4
+        },
+        {
+            "name": "AdamW_LR_3e-4",
+            "optimizer_name": "adamw",
+            "lr": 3e-4
+        },
+        {
+            "name": "AdamW_LR_1e-3",
+            "optimizer_name": "adamw",
+            "lr": 1e-3
+        },
+        {
+            "name": "AdamW_LR_3e-3",
+            "optimizer_name": "adamw",
+            "lr": 3e-3
+        },
+        {
+            "name": "Adam_LR_1e-4",
+            "optimizer_name": "adam",
+            "lr": 1e-4
+        },
+        {
+            "name": "Adam_LR_3e-4",
+            "optimizer_name": "adam",
+            "lr": 3e-4
+        },
+        {
+            "name": "Adam_LR_1e-3",
+            "optimizer_name": "adam",
+            "lr": 1e-3
+        },
+        {
+            "name": "Adam_LR_3e-3",
+            "optimizer_name": "adam",
+            "lr": 3e-3
+        },
+        {
+            "name": "SGD_LR_1e-2",
+            "optimizer_name": "sgd",
+            "lr": 1e-2
+        },
+        {
+            "name": "SGD_LR_3e-2",
+            "optimizer_name": "sgd",
+            "lr": 3e-2
+        },
+        {
+            "name": "SGD_LR_1e-1",
+            "optimizer_name": "sgd",
+            "lr": 1e-1
+        },
+        {
+            "name": "Adagrad_LR_1e-2",
+            "optimizer_name": "adagrad",
+            "lr": 1e-2
+        },
+        {
+            "name": "Adagrad_LR_3e-2",
+            "optimizer_name": "adagrad",
+            "lr": 3e-2
+        },
+        {
+            "name": "Adagrad_LR_1e-1",
+            "optimizer_name": "adagrad",
+            "lr": 1e-1
+        }
+    ]
+}

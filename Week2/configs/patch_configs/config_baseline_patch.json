@@ -1,27 +1,22 @@
 {
     "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
     "batch_size": 256,
-    "epochs": 80,
-    "lr": 1e-3,
+    "epochs": 40,
+    "lr": 0.001,
     "num_workers": 4,
     "wandb_project": "week2-patches",
     "wandb_entity": "c3-team4",
     "wandb_mode": "online",
-    "experiment_name": "BEST",
-    "optimizer_name": "adamw",
+    "experiment_name": "baseline_patches",
+    "optimizer_name": "adam",
     "optimizer_params": {
         "weight_decay": 1e-4
     },
-    "data_augmentation": true,
-    "scheduler_name": "cosineannealinglr",
-    "scheduler_params": {
-        "T_max": 80,
-        "eta_min": 1e-6
-    },
     "img_size": 224,
     "patch_enable": true,
+    "patch_size": 112,
     "aggregation": "mean",
-    "patch_size": 28,
+    "evaluation_mode": "patch",
     "model_params": {
         "hidden_layers": [
             1024,
@@ -29,7 +24,7 @@
             256,
             128
         ],
-        "dropout": 0.1,
+        "dropout": 0.5,
         "activation": "leaky_relu"
     }
 }

@@ -5,7 +5,7 @@
         "batch_size": 256,
         "epochs": 80,
         "num_workers": 4,
-        "wandb_project": "week2-patches",
+        "wandb_project": "week2-patches-final",
         "wandb_entity": "c3-team4",
         "wandb_mode": "online",
         "optimizer_name": "adamw",
@@ -13,6 +13,7 @@
         "optimizer_params": {
             "weight_decay": 0
         },
+        "data_augmentation": true,
         "scheduler_name": "cosineannealinglr",
         "scheduler_params": {
             "T_max": 80,
@@ -20,6 +21,7 @@
         },
         "img_size": 224,
         "patch_enable": true,
+        "evaluation_mode": "aggregated",
         "model_params": {
             "dropout": 0.1,
             "hidden_layers": [
@@ -33,19 +35,19 @@
     },
     "variations": [
         {
-            "name": "size_112_mean",
+            "name": "size_28_mean",
             "aggregation": "mean",
-            "patch_size": 112
+            "patch_size": 28
         },
         {
-            "name": "size_112_max",
+            "name": "size_28_max",
             "aggregation": "max",
-            "patch_size": 112
+            "patch_size": 28
         },
         {
-            "name": "size_112_median",
+            "name": "size_28_median",
             "aggregation": "median",
-            "patch_size": 112
+            "patch_size": 28
         },
         {
             "name": "size_56_mean",
@@ -63,19 +65,19 @@
             "patch_size": 56
         },
         {
-            "name": "size_28_mean",
+            "name": "size_112_mean",
             "aggregation": "mean",
-            "patch_size": 28
+            "patch_size": 112
         },
         {
-            "name": "size_28_max",
+            "name": "size_112_max",
             "aggregation": "max",
-            "patch_size": 28
+            "patch_size": 112
         },
         {
-            "name": "size_28_median",
+            "name": "size_112_median",
             "aggregation": "median",
-            "patch_size": 28
+            "patch_size": 112
         }
     ]
 }

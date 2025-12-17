@@ -14,3 +14,5 @@ Week2/experiments/
 Week2/__pycache__/
 svm_experiments/
 Week2/best_models/
+Week2/plots_svm/
+Week2/results_best_svm/

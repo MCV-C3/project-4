@@ -25,18 +25,27 @@ from models import MLP
 
 def histogram_intersection_kernel(X, Y):
     """
-    Compute the histogram intersection kernel between X and Y.
+    Compute the histogram intersection kernel between X and Y using batching to avoid OOM.
     K(x, y) = sum(min(xi, yi))
     """
-    try:
-        K = np.sum(np.minimum(X[:, None, :], Y[None, :, :]), axis=-1)
-        return K
-    except MemoryError:
-        print("Warning: OOM in HistIntersection. Switching to slower iterative mode.")
-        K = np.zeros((X.shape[0], Y.shape[0]))
-        for i in range(X.shape[0]):
-            K[i, :] = np.sum(np.minimum(X[i], Y), axis=1)
-        return K
+    N_x = X.shape[0]
+    K = np.zeros((N_x, Y.shape[0]))
+    
+    # Batch size for rows of X. 
+    # Logic: (Batch, N_y, D) float64 tensor.
+    # 10 * 8700 * 2000 * 8 bytes ~= 1.4 GB. 
+    # With 8 workers, this is 11 GB total peak. well within 48 GB.
+    # To be safer let's use 5.
+    BATCH_SIZE = 5
+    
+    for i in range(0, N_x, BATCH_SIZE):
+        x_batch = X[i:i+BATCH_SIZE] # (B, D)
+        # Broadcast: (B, 1, D) vs (1, Ny, D) -> (B, Ny, D)
+        # Sum over D -> (B, Ny)
+        res = np.sum(np.minimum(x_batch[:, None, :], Y[None, :, :]), axis=-1)
+        K[i:i+BATCH_SIZE, :] = res
+        
+    return K
 
 # ==========================================
 # FEATURE EXTRACTION
@@ -74,6 +83,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Week 2 SVM Part 1: Config-Driven Feature Extraction + Grid Search")
     parser.add_argument("--svm_config", type=str, required=True, help="Path to SVM config file")
     parser.add_argument("--dry-run", action="store_true", help="Run with limited data for debugging")
+    parser.add_argument("--n_jobs", type=int, default=4, help="Number of parallel jobs for cross-validation (default: 4)")
     
     args = parser.parse_args()
 
@@ -253,6 +263,7 @@ if __name__ == "__main__":
         
         # 7. Run Parameter Search for this Layer
         layer_best_score = -1.0
+        n_features = X_train.shape[1]
         
         for params in tqdm.tqdm(param_grid, desc=f"Grid Search (Layer {layer_id})"):
             base_config_name = params.get("name", "unnamed")
@@ -268,8 +279,9 @@ if __name__ == "__main__":
                 clf = SVC(probability=False, **svc_args)
                 
                 # Cross Validation (return_train_score=True)
-                # n_jobs=-1 to use all CPUs
-                cv_results = cross_validate(clf, X_train, y_train, cv=5, scoring='accuracy', n_jobs=-1, return_train_score=True)
+                # n_jobs=-1 to use all CPUs (CAUTION: Can cause OOM)
+                # Using args.n_jobs instead
+                cv_results = cross_validate(clf, X_train, y_train, cv=5, scoring='accuracy', n_jobs=args.n_jobs, return_train_score=True)
                 
                 mean_val_score = cv_results['test_score'].mean()
                 std_val_score = cv_results['test_score'].std()
@@ -290,15 +302,17 @@ if __name__ == "__main__":
                     "cv_std_test_accuracy": std_val_score,
                     "cv_mean_train_accuracy": mean_train_score,
                     "cv_std_train_accuracy": std_train_score,
-                    "mean_execution_time": mean_fit_time
+                    "mean_execution_time": mean_fit_time,
+                    "n_features": n_features
                 }
                 global_results_list.append(result_entry)
                 
-                print(f"[{full_config_name}] Val Acc: {mean_val_score:.4f} | Train Acc: {mean_train_score:.4f}")
+                print(f"[{full_config_name}] Val Acc: {mean_val_score:.4f} | Train Acc: {mean_train_score:.4f} | Feats: {n_features}")
                 
                 if not args.dry_run:
                     wandb.log({
                         "sweep/layer": str(layer_id),
+                        "sweep/n_features": n_features,
                         "sweep/config_name": full_config_name,
                         "sweep/val_accuracy": mean_val_score,
                         "sweep/train_accuracy": mean_train_score,

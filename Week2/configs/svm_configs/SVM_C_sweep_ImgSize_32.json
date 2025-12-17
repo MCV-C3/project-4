@@ -1,0 +1,78 @@
+{
+    "experiment_name": "SVM_C_sweep_ImgSize_32",
+    "model_path": "best_models/ImgSize_32/ImgSize_32.pth",
+    "train_config_path": "configs/config_best_ImgSize_32.json",
+    "layers_to_eval": [
+        0,
+        1,
+        2,
+        3,
+        "output",
+        "concat"
+    ],
+    "wandb_project": "week2-svm-params",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    "param_grid": [
+        {
+            "name": "linear_C0.01",
+            "kernel": "linear",
+            "C": 0.01
+        },
+        {
+            "name": "linear_C0.1",
+            "kernel": "linear",
+            "C": 0.1
+        },
+        {
+            "name": "linear_C1",
+            "kernel": "linear",
+            "C": 1
+        },
+        {
+            "name": "linear_C5",
+            "kernel": "linear",
+            "C": 5
+        },
+        {
+            "name": "rbf_C0.01",
+            "kernel": "rbf",
+            "C": 0.01
+        },
+        {
+            "name": "rbf_C0.1",
+            "kernel": "rbf",
+            "C": 0.1
+        },
+        {
+            "name": "rbf_C1",
+            "kernel": "rbf",
+            "C": 1
+        },
+        {
+            "name": "rbf_C5",
+            "kernel": "rbf",
+            "C": 5
+        },
+        {
+            "name": "hist_inter_C0.01",
+            "kernel": "histogram_intersection",
+            "C": 0.01
+        },
+        {
+            "name": "hist_inter_C0.1",
+            "kernel": "histogram_intersection",
+            "C": 0.1
+        },
+        {
+            "name": "hist_inter_C1",
+            "kernel": "histogram_intersection",
+            "C": 1
+        },
+        {
+            "name": "hist_inter_C5",
+            "kernel": "histogram_intersection",
+            "C": 5
+        }
+    ]
+}

@@ -7,7 +7,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 from models import MLP
-from utils import get_patches, InMemoryDataset
+from utils import get_patches, InMemoryDataset, aggregate_predictions
 import torchvision.transforms.v2  as F
 from torchviz import make_dot
 import tqdm
@@ -17,28 +17,28 @@ import os
 import wandb
 
 # Train function
-def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, patch_size=112):
+def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, patch_size=112, aggregation="mean", evaluation_mode="patch"):
     model.train()
     train_loss = 0.0
     correct, total = 0, 0
 
     for inputs, labels in dataloader:
         inputs, labels = inputs.to(device), labels.to(device)
-
-        # Store original batch size to calculate repetition factor later
         original_batch_size = inputs.size(0)
 
         if patch_enabled:
-            # Patches shape: (4096, 3, 64, 64)
+            # Patches shape: (B * N_patches, C, H, W)
             inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
 
             # Expand Labels 
             num_patches_per_img = inputs.size(0) // original_batch_size
-            labels = labels.repeat_interleave(num_patches_per_img)
+            labels_expanded = labels.repeat_interleave(num_patches_per_img)
+        else:
+            labels_expanded = labels
 
         # Forward pass
         outputs = model(inputs)
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs, labels_expanded)
 
         # Backward pass and optimization
         optimizer.zero_grad()
@@ -46,17 +46,31 @@ def train(model, dataloader, criterion, optimizer, device, patch_enabled=False, 
         optimizer.step()
 
         # Track loss and accuracy
-        train_loss += loss.item() * inputs.size(0)
-        _, predicted = outputs.max(1)
-        correct += (predicted == labels).sum().item()
-        total += labels.size(0)
+        if patch_enabled and evaluation_mode == "aggregated":
+            # We aggregate the patch predictions to see how well the model classifies IMAGES during training
+            aggregated_outputs = aggregate_predictions(outputs, original_batch_size, aggregation)
+            
+            # Recalculate loss for reporting (Image vs Image Label)
+            # Note: This is just for the plot, the gradients came from patch loss above
+            loss_report = criterion(aggregated_outputs, labels) 
+            
+            train_loss += loss_report.item() * original_batch_size
+            _, predicted = aggregated_outputs.max(1)
+            correct += (predicted == labels).sum().item()
+            total += labels.size(0) # Total Images
+            
+        else:
+            train_loss += loss.item() * inputs.size(0)
+            _, predicted = outputs.max(1)
+            correct += (predicted == labels_expanded).sum().item()
+            total += labels_expanded.size(0) # Total Patches
 
     avg_loss = train_loss / total
     accuracy = correct / total
     return avg_loss, accuracy
 
 
-def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggregation):
+def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggregation, evaluation_mode="patch"):
     model.eval()
     test_loss = 0.0
     correct, total = 0, 0
@@ -64,38 +78,35 @@ def test(model, dataloader, criterion, device, patch_enabled, patch_size, aggreg
     with torch.no_grad():
         for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
-
-            # Store original batch size to calculate repetition factor later
             original_batch_size = inputs.size(0)
 
             if patch_enabled:
-                # Patches shape: (4096, 3, 64, 64)
                 inputs = get_patches(inputs, patch_size=patch_size, stride=patch_size)
-
-                # Forward pass
-                outputs = model(inputs)
-
-                num_patches = inputs.size(0) // original_batch_size
-                outputs_grouped = outputs.view(original_batch_size, num_patches, -1)
-                
-                if aggregation == "mean":
-                    outputs = outputs_grouped.mean(dim=1)
-                elif aggregation == "max":
-                    outputs = outputs_grouped.max(dim=1)
-                elif aggregation == "median":
-                    outputs = outputs_grouped.median(dim=1)
-                else:
-                    pass # VOTING??
+                num_patches_per_img = inputs.size(0) // original_batch_size
+                labels_expanded = labels.repeat_interleave(num_patches_per_img)
             else:
-                outputs = model(inputs)
+                labels_expanded = labels
             
-            loss = criterion(outputs, labels)
+            # Forward pass
+            outputs = model(inputs)
 
-            # Track loss and accuracy
-            test_loss += loss.item() * original_batch_size
-            _, predicted = outputs.max(1)
-            correct += (predicted == labels).sum().item()
-            total += labels.size(0)
+            if patch_enabled and evaluation_mode == "aggregated":
+                aggregated_outputs = aggregate_predictions(outputs, original_batch_size, aggregation)
+                
+                loss = criterion(aggregated_outputs, labels) # Compare Aggregated vs Image Label
+                
+                test_loss += loss.item() * original_batch_size
+                _, predicted = aggregated_outputs.max(1)
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0) # Total Images
+                
+            else:
+                loss = criterion(outputs, labels_expanded) # Compare Patch vs Patch Label
+                
+                test_loss += loss.item() * inputs.size(0)
+                _, predicted = outputs.max(1)
+                correct += (predicted == labels_expanded).sum().item()
+                total += labels_expanded.size(0) # Total Patches
 
     avg_loss = test_loss / total
     accuracy = correct / total
@@ -190,8 +201,9 @@ if __name__ == "__main__":
     DATA_AUGMENTATION = config.get("data_augmentation", True)
     PATCH_ENABLE = config.get("patch_enable", False)
     PATCH_SIZE = config.get("patch_size", 112) # 112, 56, 28
-    AGGREGATION = config.get("mean", "mean")
-    
+    AGGREGATION = config.get("aggregation", "mean")
+    EVALUATION_MODE = config.get("evaluation_mode", "patch")
+
     # Optimizer & Scheduler config
     OPTIMIZER_NAME = config.get("optimizer_name", "adam")
     OPTIMIZER_PARAMS = config.get("optimizer_params", {})
@@ -295,16 +307,16 @@ if __name__ == "__main__":
     for epoch in tqdm.tqdm(range(EPOCHS), desc="TRAINING THE MODEL"):
         if args.dry_run:
             print("Dry run: Running one epoch with limited batches...")
-            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
-            val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION)
+            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION, EVALUATION_MODE)
+            val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION, EVALUATION_MODE)
             train_losses.append(train_loss)
             train_accuracies.append(train_accuracy)
             val_losses.append(val_loss)
             val_accuracies.append(val_accuracy)
             break
         
-        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE)
-        val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION) # Using test function for validation
+        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION, EVALUATION_MODE)
+        val_loss, val_accuracy = test(model, val_loader, criterion, device, PATCH_ENABLE, PATCH_SIZE, AGGREGATION, EVALUATION_MODE) # Using test function for validation
         
         # Step the scheduler
         if scheduler:
@@ -363,6 +375,7 @@ if __name__ == "__main__":
     if PATCH_ENABLE:
         results["patch_size"] = PATCH_SIZE
         results["aggregation"] = AGGREGATION
+        results["evaluation_mode"] = EVALUATION_MODE
 
     with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:
         json.dump(results, f, indent=4)

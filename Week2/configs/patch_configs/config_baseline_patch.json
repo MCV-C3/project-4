@@ -16,6 +16,7 @@
     "patch_enable": true,
     "patch_size": 112,
     "aggregation": "mean",
+    "evaluation_mode": "patch",
     "model_params": {
         "hidden_layers": [
             1024,

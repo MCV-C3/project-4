@@ -1,0 +1,18 @@
+{
+    "experiment_name": "BoVW_LR_Sweep_2",
+    "wandb_project": "week2-bovw",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+    "model_path": "experiments/patching_aggregation_study/size_28_mean/size_28_mean.pth",
+    
+    "img_size": 224,
+    "batch_size": 256,
+    "patch_size": 28,
+    "stride": 28,
+    
+    "codebook_size": 200,
+    "layers_to_eval": [0, 1, 2, 3, "concat", "output"],
+    "c_values": [0.01, 0.1, 1.0, 5.0, 7.0, 10.0]
+}

@@ -3,11 +3,11 @@ data/
 results/
 computed_descriptors*/
 wandb
+logs
 *.txt
 .vscode
 
 # Week 2
-Week2/logs/
 Week2/experiments/
 # Week2/*.png
 # Week2/*.pth
@@ -16,3 +16,6 @@ svm_experiments/
 Week2/best_models/
 Week2/plots_svm/
 Week2/results_best_svm/
+
+# Week3
+Week3/baseline_results

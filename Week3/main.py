@@ -135,10 +135,11 @@ if __name__ == "__main__":
                                     F.ToImage(),
                                     F.ToDtype(torch.float32, scale=True),
                                     F.Resize(size=(224, 224)),
+                                    # F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                                 ])
     
-    data_train = ImageFolder("~/data/Master/MIT_split/train", transform=transformation)
-    data_test = ImageFolder("~/data/Master/MIT_split/test", transform=transformation) 
+    data_train = ImageFolder("/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train", transform=transformation)
+    data_test = ImageFolder("/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test", transform=transformation) 
 
     train_loader = DataLoader(data_train, batch_size=16, pin_memory=True, shuffle=True, num_workers=8)
     test_loader = DataLoader(data_test, batch_size=1, pin_memory=True, shuffle=False, num_workers=8)
@@ -147,12 +148,17 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
     model = WraperModel(num_classes=8, feature_extraction=True)#SimpleModel(input_d=C*H*W, hidden_d=300, output_d=8)
 
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # Another option
+    # Only pass to the optimizer the parameters to optimize, not all of them (because includes frozen parameters)
+    # params_to_update = [p for p in model.parameters() if p.requires_grad] 
+    # optimizer = optimizer.Adam(params_to_update, lr=0.001)
+
     num_epochs = 3
 
     train_losses, train_accuracies = [], []

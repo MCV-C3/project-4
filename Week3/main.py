@@ -148,9 +148,12 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = WraperModel(num_classes=8, feature_extraction=True)#SimpleModel(input_d=C*H*W, hidden_d=300, output_d=8)
-
+    model = WraperModel(num_classes=8)
     model = model.to(device)
+
+    UNFREEZE_DEPTH = 0
+    model.fine_tuning(unfreeze_blocks=UNFREEZE_DEPTH)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -159,7 +162,7 @@ if __name__ == "__main__":
     # params_to_update = [p for p in model.parameters() if p.requires_grad] 
     # optimizer = optimizer.Adam(params_to_update, lr=0.001)
 
-    num_epochs = 3
+    num_epochs = 10
 
     train_losses, train_accuracies = [], []
     test_losses, test_accuracies = [], []

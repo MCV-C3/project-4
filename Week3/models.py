@@ -63,6 +63,43 @@ class WraperModel(nn.Module):
         # Modify the classifier for the number of classes
         self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
 
+    def fine_tuning(self, unfreeze_blocks: int = 0):
+        """
+        
+        Sets the trainability of layers based on a desired depth.
+        This function implements progressive unfreezing from deep to shallow layers.
+        
+        Args:
+            unfreeze_blocks (int): The number of convolutional blocks to unfreeze starting from
+                the end of the network. MAX = 4 -> [0-4] (0: fc, 1: layer4, 2: layer3...)
+                                   
+        """
+        assert 0 <= unfreeze_blocks <= 4, "Unfreeze_blocks variable must be an int between 0 and 4."
+
+        print(f"\n--- Setting Fine-Tuning (Unfreezing {unfreeze_blocks} blocks) ---")
+        
+        # Classification head will be always trainable
+        # FOR THE MOMENT (see slides Transfer Learning)
+        for param in self.backbone.fc.parameters():
+            param.requires_grad = True
+        print("-> Classifier head (fc) is defrosted.")
+
+        # ResNeXt blocks in reverse order (deepest first)
+        blocks_reversed = [
+            ('layer4', self.backbone.layer4),
+            ('layer3', self.backbone.layer3),
+            ('layer2', self.backbone.layer2),
+            ('layer1', self.backbone.layer1)
+        ]
+
+        # Iterate and unfreeze the specified number of deep blocks
+        for i in range(unfreeze_blocks):
+            block_name, block_layer = blocks_reversed[i]
+            print(f"-> Unfreezing block: {block_name}")
+            for param in block_layer.parameters():
+                param.requires_grad = True
+                
+
     def forward(self, x):
         return self.backbone(x)
     
@@ -152,6 +189,7 @@ class WraperModel(nn.Module):
 
         return outputs
 
+
     def modify_layers(self, modify_fn: Callable[[nn.Module], nn.Module]):
         """
         Modify layers of the model using a provided function.
@@ -174,14 +212,10 @@ class WraperModel(nn.Module):
                          target_layer: List[Type[nn.Module]], 
                          targets: List[Type[ClassifierOutputTarget]]) -> Type[GradCAMPlusPlus]:
 
-        
-
         with GradCAMPlusPlus(model=self.backbone, target_layers=target_layer) as cam:
-
             grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
 
         return grayscale_cam
-
 
 
 

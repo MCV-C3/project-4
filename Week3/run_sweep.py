@@ -91,6 +91,18 @@ def run_sweep(sweep_config_path, dry_run=False):
         for res in all_results:
             display_name = res.get('experiment_name', '').split('/')[-1]
             print(f"{display_name:<30} | {res.get('unfreeze_depth', ''):<10} | {res.get('lr', ''):<10} | {res.get('best_test_accuracy', 0):<15.4f}")
+
+        print(f"\nSweep completed. Results saved to {csv_path}")
+        print("\nSummary:")
+        print(f"{'Experiment':<30} | {'Depth':<10} | {'LR':<10} | {'Best Acc':<15}")
+        print("-" * 75)
+
+        for res in all_results:
+            display_name = res.get('experiment_name', '').split('/')[-1]
+            unfreeze = res.get('unfreeze_depth', 0)
+            lr_val = res.get('lr', 0.0)
+            accuracy = float(res.get('best_test_accuracy') or 0.0) 
+            print(f"{display_name:<30} | {unfreeze:<10} | {lr_val:<10.2e} | {accuracy:<15.4f}")
     else:
         print("\nSweep completed but no results collected.")
 

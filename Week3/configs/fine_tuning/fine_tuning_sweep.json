@@ -1,5 +1,5 @@
 {
-    "sweep_name": "fine_tuning_depth",
+    "sweep_name": "fine_tuning_depth_v2",
     "baseline": {
         "wandb_project": "week3-fine-tuning",
         "wandb_entity": "c3-team4",
@@ -28,6 +28,11 @@
         {
             "name": "depth_2_layer3_4",
             "unfreeze_depth": 2,
+            "lr": 0.0001
+        },
+        {
+            "name": "depth_2_layer3_4",
+            "unfreeze_depth": 3,
             "lr": 0.0001
         },
         {

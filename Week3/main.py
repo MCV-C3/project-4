@@ -326,7 +326,8 @@ def main(args):
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,
         "lr": LR,
-        "img_size": IMG_SIZE
+        "img_size": IMG_SIZE,
+        "unfreeze_depth": UNFREEZE_DEPTH
     }
 
     with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:

@@ -31,7 +31,7 @@
             "lr": 0.0001
         },
         {
-            "name": "depth_2_layer3_4",
+            "name": "depth_3_layer2_3_4",
             "unfreeze_depth": 3,
             "lr": 0.0001
         },

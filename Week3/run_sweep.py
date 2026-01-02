@@ -60,6 +60,7 @@ def run_sweep(sweep_config_path, dry_run=False):
                         "experiment_name": res.get("experiment_name"),
                         "unfreeze_depth": res.get("unfreeze_depth"),
                         "lr": res.get("lr"),
+                        "train_accuracy": res.get("train_accuracy"),
                         "best_test_accuracy": res.get("best_test_accuracy"),
                         "final_test_accuracy": res.get("final_test_accuracy"),
                         "final_test_loss": res.get("final_test_loss")
@@ -84,14 +85,6 @@ def run_sweep(sweep_config_path, dry_run=False):
             dict_writer.writeheader()
             dict_writer.writerows(all_results)
             
-        print(f"\nSweep completed. Results saved to {csv_path}")
-        print("\nSummary:")
-        print(f"{'Experiment':<30} | {'Depth':<10} | {'LR':<10} | {'Best Acc':<15}")
-        print("-" * 75)
-        for res in all_results:
-            display_name = res.get('experiment_name', '').split('/')[-1]
-            print(f"{display_name:<30} | {res.get('unfreeze_depth', ''):<10} | {res.get('lr', ''):<10} | {res.get('best_test_accuracy', 0):<15.4f}")
-
         print(f"\nSweep completed. Results saved to {csv_path}")
         print("\nSummary:")
         print(f"{'Experiment':<30} | {'Depth':<10} | {'LR':<10} | {'Best Acc':<15}")

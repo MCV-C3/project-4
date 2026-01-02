@@ -1,6 +1,5 @@
-
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -63,6 +62,7 @@ class WraperModel(nn.Module):
         # Modify the classifier for the number of classes
         self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
 
+
     def fine_tuning(self, unfreeze_blocks: int = 0):
         """
         
@@ -103,31 +103,6 @@ class WraperModel(nn.Module):
     def forward(self, x):
         return self.backbone(x)
     
-
-    def extract_feature_maps(self, input_image:torch.Tensor):
-
-        conv_weights =[]
-        conv_layers = []
-        total_conv_layers = 0
-
-        for module in self.backbone.features.children():
-            if isinstance(module, nn.Conv2d):
-                total_conv_layers += 1
-                conv_weights.append(module.weight)
-                conv_layers.append(module)
-
-
-        print("TOTAL CONV LAYERS: ", total_conv_layers)
-        feature_maps = []  # List to store feature maps
-        layer_names = []  # List to store layer names
-        x= torch.clone(input=input_image)
-        for layer in conv_layers:
-            x = layer(x)
-            feature_maps.append(x)
-            layer_names.append(str(layer))
-
-        return feature_maps, layer_names
-
 
     def extract_feature_maps(self, input_image: torch.Tensor):
         conv_layers = []
@@ -211,9 +186,13 @@ class WraperModel(nn.Module):
     def extract_grad_cam(self, input_image: torch.Tensor, 
                          target_layer: List[Type[nn.Module]], 
                          targets: List[Type[ClassifierOutputTarget]]) -> Type[GradCAMPlusPlus]:
-
-        with GradCAMPlusPlus(model=self.backbone, target_layers=target_layer) as cam:
-            grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
+        # Ensure gradients are tracked for the input
+        input_image.requires_grad = True
+    
+        # Ensure gradients are enabled globally for this specific call
+        with torch.set_grad_enabled(True):
+            with GradCAMPlusPlus(model=self.backbone, target_layers=target_layer) as cam:
+                grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
 
         return grayscale_cam
 

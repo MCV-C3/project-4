@@ -6,4 +6,4 @@
 #SBATCH -o logs/bow_%u_%j.out
 #SBATCH -e logs/bow_%u_%j.err
 
-python baseline_previous_weeks.py
+python run_sweep.py --config configs/fine_tuning/fine_tuning_sweep.json

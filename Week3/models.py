@@ -1,6 +1,5 @@
-
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -51,48 +50,82 @@ class SimpleModel(nn.Module):
 
 
 class WraperModel(nn.Module):
-    def __init__(self, num_classes: int, feature_extraction: bool=True):
+    def __init__(self, num_classes: int):
         super(WraperModel, self).__init__()
 
-        # Load pretrained VGG16 model
-        self.backbone = models.vgg16(weights='IMAGENET1K_V1')
+        # Load pretrained ResNext101
+        self.backbone = models.resnext101_32x8d(weights='IMAGENET1K_V1', progress=True)
         
-        if feature_extraction:
-            self.set_parameter_requires_grad(feature_extracting=feature_extraction)
+        # Freeze everything initially
+        self.set_parameter_requires_grad()
 
         # Modify the classifier for the number of classes
-        self.backbone.classifier[-1] = nn.Linear(self.backbone.classifier[-1].in_features, num_classes)
+        self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
+
+
+    def fine_tuning(self, unfreeze_blocks: int = 0):
+        """
+        
+        Sets the trainability of layers based on a desired depth.
+        This function implements progressive unfreezing from deep to shallow layers.
+        
+        Args:
+            unfreeze_blocks (int): The number of convolutional blocks to unfreeze starting from
+                the end of the network. MAX = 4 -> [0-4] (0: fc, 1: layer4, 2: layer3...)
+                                   
+        """
+        assert 0 <= unfreeze_blocks <= 4, "Unfreeze_blocks variable must be an int between 0 and 4."
+
+        print(f"\n--- Setting Fine-Tuning (Unfreezing {unfreeze_blocks} blocks) ---")
+        
+        # Classification head will be always trainable
+        # FOR THE MOMENT (see slides Transfer Learning)
+        for param in self.backbone.fc.parameters():
+            param.requires_grad = True
+        print("-> Classifier head (fc) is defrosted.")
+
+        # ResNeXt blocks in reverse order (deepest first)
+        blocks_reversed = [
+            ('layer4', self.backbone.layer4),
+            ('layer3', self.backbone.layer3),
+            ('layer2', self.backbone.layer2),
+            ('layer1', self.backbone.layer1)
+        ]
+
+        # Iterate and unfreeze the specified number of deep blocks
+        for i in range(unfreeze_blocks):
+            block_name, block_layer = blocks_reversed[i]
+            print(f"-> Unfreezing block: {block_name}")
+            for param in block_layer.parameters():
+                param.requires_grad = True
+                
 
     def forward(self, x):
         return self.backbone(x)
     
 
-    def extract_feature_maps(self, input_image:torch.Tensor):
-
-        conv_weights =[]
+    def extract_feature_maps(self, input_image: torch.Tensor):
         conv_layers = []
-        total_conv_layers = 0
-
-        for module in self.backbone.features.children():
+        layer_names = []
+        
+        for name, module in self.backbone.named_modules():
             if isinstance(module, nn.Conv2d):
-                total_conv_layers += 1
-                conv_weights.append(module.weight)
                 conv_layers.append(module)
+                layer_names.append(name)
 
-
-        print("TOTAL CONV LAYERS: ", total_conv_layers)
-        feature_maps = []  # List to store feature maps
-        layer_names = []  # List to store layer names
-        x= torch.clone(input=input_image)
+        print("TOTAL CONV LAYERS: ", len(conv_layers))
+        
+        feature_maps = []
+        x = torch.clone(input=input_image)
+        
+        # Note: Sequential extraction in ResNets is complex due to skip connections.
+        # For a simple sequential test, we'll just store the activations.
         for layer in conv_layers:
-            x = layer(x)
-            feature_maps.append(x)
-            layer_names.append(str(layer))
+            # This only works if layers are strictly sequential, which ResNet is NOT.
+            # It is better to use the 'extract_features_from_hooks' method for ResNet.
+            pass 
 
         return feature_maps, layer_names
-
-
-
         
 
     def extract_features_from_hooks(self, x, layers: List[str]):
@@ -113,15 +146,14 @@ class WraperModel(nn.Module):
             return hook
 
         # Register hooks for specified layers
-        #for layer_name in layers:
-        dict_named_children = {}
-        for name, layer in self.backbone.named_children():
-            for n, specific_layer in layer.named_children():
-                dict_named_children[f"{name}.{n}"] = specific_layer
+        model_modules = dict(self.backbone.named_modules())
 
         for layer_name in layers:
-            layer = dict_named_children[layer_name]
-            hooks.append(layer.register_forward_hook(get_activation(layer_name)))
+            if layer_name in model_modules:
+                layer = model_modules[layer_name]
+                hooks.append(layer.register_forward_hook(get_activation(layer_name)))
+            else:
+                print(f"Warning: Layer {layer_name} not found in ResNeXt.")
 
         # Perform forward pass
         _ = self.forward(x)
@@ -132,6 +164,7 @@ class WraperModel(nn.Module):
 
         return outputs
 
+
     def modify_layers(self, modify_fn: Callable[[nn.Module], nn.Module]):
         """
         Modify layers of the model using a provided function.
@@ -141,28 +174,27 @@ class WraperModel(nn.Module):
         self.vgg16 = modify_fn(self.vgg16)
 
 
-    def set_parameter_requires_grad(self, feature_extracting):
+    def set_parameter_requires_grad(self):
         """
         Set parameters gradients to false in order not to optimize them in the training process.
         """
-        if feature_extracting:
-            for param in self.backbone.parameters():
-                param.requires_grad = False
+        for param in self.backbone.parameters():
+            param.requires_grad = False
 
 
 
     def extract_grad_cam(self, input_image: torch.Tensor, 
                          target_layer: List[Type[nn.Module]], 
                          targets: List[Type[ClassifierOutputTarget]]) -> Type[GradCAMPlusPlus]:
-
-        
-
-        with GradCAMPlusPlus(model=self.backbone, target_layers=target_layer) as cam:
-
-            grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
+        # Ensure gradients are tracked for the input
+        input_image.requires_grad = True
+    
+        # Ensure gradients are enabled globally for this specific call
+        with torch.set_grad_enabled(True):
+            with GradCAMPlusPlus(model=self.backbone, target_layers=target_layer) as cam:
+                grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
 
         return grayscale_cam
-
 
 
 
@@ -176,22 +208,6 @@ if __name__ == "__main__":
     #model.load_state_dict(torch.load("saved_model.pt"))
     #model = model
 
-    """
-        features.0
-        features.2
-        features.5
-        features.7
-        features.10
-        features.12
-        features.14
-        features.17
-        features.19
-        features.21
-        features.24
-        features.26
-        features.28
-    """
-
     transformation  = F.Compose([
                                     F.ToImage(),
                                     F.ToDtype(torch.float32, scale=True),
@@ -199,12 +215,11 @@ if __name__ == "__main__":
                                     F.Resize(size=(256, 256)),
                                 ])
     # Example GradCAM usage
-    dummy_input = Image.open("/home/cboned/data/Master/MIT_split/test/highway/art803.jpg")#torch.randn(1, 3, 224, 224)
+    dummy_input = Image.open("/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test/highway/art803.jpg")#torch.randn(1, 3, 224, 224)
     input_image = transformation(dummy_input).unsqueeze(0)
 
-
-
-    target_layers = [model.backbone.features[26]]
+    # For Grad-CAM, target the last conv layer 
+    target_layers = [model.backbone.layer4[-1].conv3]
     targets = [ClassifierOutputTarget(6)]
     
     image = torch.from_numpy(np.array(dummy_input)).cpu().numpy()
@@ -249,7 +264,7 @@ if __name__ == "__main__":
     ## Is not necessary to have gradients
 
     with torch.no_grad():
-        feature_map = (model.extract_features_from_hooks(x=input_image, layers=["features.28"]))["features.28"]
+        feature_map = (model.extract_features_from_hooks(x=input_image, layers=["layer4.2"]))["layer4.2"]
         feature_map = feature_map.squeeze(0)  # Remove the batch dimension
         print(feature_map.shape)
         processed_feature_map, _ = torch.min(feature_map, 0) 
@@ -263,4 +278,4 @@ if __name__ == "__main__":
 
     ## Draw the model
     model_graph = draw_graph(model, input_size=(1, 3, 224, 224), device='meta', expand_nested=True, roll=True)
-    model_graph.visual_graph.render(filename="test", format="png", directory="./Week3")
+    model_graph.visual_graph.render(filename="test", format="png", directory="../Week3")

@@ -1,0 +1,29 @@
+[
+    {
+        "name": "SVM-HistogramIntersection (C=0.1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "detector_kwargs": {},
+            "dense": true,
+            "step_size": 8,
+            "scale": 8,
+            "codebook_size": 200,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "use_pca": false,
+            "pca_components": 64,
+            "normalization": "l2",
+            "scaler": "MinMaxScaler",
+            "classifier": "SVM-HistogramIntersection",
+            "C": 0.1,
+            "gamma": "scale",
+            "codebook_batch_size": 200,
+            "max_samples_train": null,
+            "max_samples_test": null
+        }
+    }
+]

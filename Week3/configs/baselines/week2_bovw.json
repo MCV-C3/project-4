@@ -1,0 +1,18 @@
+{
+    "experiment_name": "week2_BoVW",
+    "wandb_project": "week3-baselines",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_large_train",
+    "model_path": "experiments/week2_dense/week2_dense.pth",
+
+    "img_size": 224,
+    "batch_size": 256,
+    "patch_size": 28,
+    "stride": 28,
+    
+    "codebook_size": 200,
+    "layers_to_eval": [3],
+    "c_values": [5.0]
+}

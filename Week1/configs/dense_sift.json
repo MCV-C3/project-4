@@ -1,0 +1,314 @@
+[
+    {
+        "name": "Dense (Step=4, Scale=4)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 4,
+            "scale": 4
+        },
+        "meta_step": 4,
+        "meta_factor": 1,
+        "meta_scale": 4
+    },
+    {
+        "name": "Dense (Step=4, Scale=2)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 4,
+            "scale": 2
+        },
+        "meta_step": 4,
+        "meta_factor": 2,
+        "meta_scale": 2
+    },
+    {
+        "name": "Dense (Step=4, Scale=1)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 4,
+            "scale": 1
+        },
+        "meta_step": 4,
+        "meta_factor": 4,
+        "meta_scale": 1
+    },
+    {
+        "name": "Dense (Step=8, Scale=8)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 8,
+            "scale": 8
+        },
+        "meta_step": 8,
+        "meta_factor": 1,
+        "meta_scale": 8
+    },
+    {
+        "name": "Dense (Step=8, Scale=4)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 8,
+            "scale": 4
+        },
+        "meta_step": 8,
+        "meta_factor": 2,
+        "meta_scale": 4
+    },
+    {
+        "name": "Dense (Step=8, Scale=2)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 8,
+            "scale": 2
+        },
+        "meta_step": 8,
+        "meta_factor": 4,
+        "meta_scale": 2
+    },
+    {
+        "name": "Dense (Step=16, Scale=16)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 16,
+            "scale": 16
+        },
+        "meta_step": 16,
+        "meta_factor": 1,
+        "meta_scale": 16
+    },
+    {
+        "name": "Dense (Step=16, Scale=8)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 16,
+            "scale": 8
+        },
+        "meta_step": 16,
+        "meta_factor": 2,
+        "meta_scale": 8
+    },
+    {
+        "name": "Dense (Step=16, Scale=4)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 16,
+            "scale": 4
+        },
+        "meta_step": 16,
+        "meta_factor": 4,
+        "meta_scale": 4
+    },
+    {
+        "name": "Dense (Step=32, Scale=32)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 32,
+            "scale": 32
+        },
+        "meta_step": 32,
+        "meta_factor": 1,
+        "meta_scale": 32
+    },
+    {
+        "name": "Dense (Step=32, Scale=16)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 32,
+            "scale": 16
+        },
+        "meta_step": 32,
+        "meta_factor": 2,
+        "meta_scale": 16
+    },
+    {
+        "name": "Dense (Step=32, Scale=8)",
+        "config": {
+            "data_path": "../data/MIT_split/",
+            "seed": 42,
+            "detector": "SIFT",
+            "dense": true,
+            "detector_kwargs": {},
+            "codebook_size": 50,
+            "spatial_pyramid": false,
+            "levels": [
+                1
+            ],
+            "classifier": "LogisticRegression",
+            "C": 1.0,
+            "gamma": "scale",
+            "codebook_batch_size": 1000,
+            "max_samples_train": null,
+            "max_samples_test": null,
+            "step_size": 32,
+            "scale": 8
+        },
+        "meta_step": 32,
+        "meta_factor": 4,
+        "meta_scale": 8
+    }
+]

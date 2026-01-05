@@ -174,7 +174,10 @@ class WraperModel(nn.Module):
             0 <= unfreeze_blocks <= 4
         ), "Unfreeze_blocks variable must be an int between 0 and 4."
 
+        self.unfrozen_blocks = unfreeze_blocks
         print(f"\n--- Setting Fine-Tuning (Unfreezing {unfreeze_blocks} blocks) ---")
+        for param in self.backbone.parameters():
+            param.requires_grad = False
 
         # Classification head will be always trainable
         # FOR THE MOMENT (see slides Transfer Learning)

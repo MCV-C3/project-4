@@ -1,11 +1,11 @@
 {
-    "sweep_name": "fine_tuning_depth_v2",
+    "sweep_name": "fine_tuning_depth_v3_large",
     "baseline": {
         "wandb_project": "week3-fine-tuning",
         "wandb_entity": "c3-team4",
         "wandb_mode": "online",
 
-        "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1",
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_large_train",
 
         "img_size": 224,
         "batch_size": 32,

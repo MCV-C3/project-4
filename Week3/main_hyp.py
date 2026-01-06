@@ -156,7 +156,7 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
     model.eval()
 
     # Ensure gradients are enabled for Grad-CAM even though we are in eval mode
-    target_layers = [model.backbone.layer4[-1]] 
+    target_layers = [model.backbone[-1]] 
     
     for i in range(num_samples):
         # Pick random images from the test set
@@ -260,6 +260,8 @@ def main():
     
     # Model Params
     UNFREEZE_DEPTH = config.get("unfreeze_depth", 0)
+    HEAD_CONFIG = config.get("head_config", None)
+    LEVEL = config.get("level", 4)
     DROPOUT_RATE = config.get("dropout", 0.0)
     ACTIVATION_NAME = config.get("activation", "relu")
     
@@ -336,27 +338,36 @@ def main():
     test_loader = DataLoader(data_test, batch_size=BATCH_SIZE, pin_memory=True, shuffle=False, num_workers=NUM_WORKERS)
 
     # --- Model Setup ---
-    model = WraperModel(num_classes=8)
+    model = WraperModel(num_classes=8, truncation_level=LEVEL)
+
+    if HEAD_CONFIG is not None:
+        model.modify_classifier_head(
+            hidden_dims=HEAD_CONFIG.get("hidden_dims", None),
+            activation=HEAD_CONFIG.get("activation", "relu"),
+        )
+
     model = model.to(device)
     
     # 1. Unfreeze layers
     model.fine_tuning(unfreeze_blocks=UNFREEZE_DEPTH)
     
+    model.summary()
+
     # 2. Modify Head (for Dropout and Activation experimentation)
     # The default head is just a Linear layer. We replace it to add capability for dropout/activation
     # We create a new structure: Linear(in, in) -> Activation -> Dropout -> Linear(in, classes)
     # This preserves the feature dimension for one extra layer to apply activation/dropout
-    in_features = model.backbone.fc.in_features
+    in_features = model.backbone_fc.in_features
     num_classes = 8
     
-    model.backbone.fc = nn.Sequential(
+    model.backbone_fc = nn.Sequential(
         nn.Linear(in_features, in_features),
         get_activation(ACTIVATION_NAME),
         nn.Dropout(p=DROPOUT_RATE),
         nn.Linear(in_features, num_classes)
     ).to(device)
     
-    print(f"Modified Head: {model.backbone.fc}")
+    print(f"Modified Head: {model.backbone_fc}")
 
     # --- Optimizer & Scheduler ---
     optimizer = get_optimizer(model, OPTIMIZER_NAME, LR, MOMENTUM, WEIGHT_DECAY)
@@ -411,10 +422,12 @@ def main():
     print("Generating Plots...")
     plot_metrics({"loss": train_losses, "accuracy": train_accuracies}, {"loss": test_losses, "accuracy": test_accuracies}, "loss", plot_name, OUTPUT_DIR)
     plot_metrics({"loss": train_losses, "accuracy": train_accuracies}, {"loss": test_losses, "accuracy": test_accuracies}, "accuracy", plot_name, OUTPUT_DIR)
-
+   
+    print("Generating Confusion Matrix...")
     plot_confusion_matrix(model, test_loader, device, data_test.classes, plot_name, OUTPUT_DIR)
     
     # Skip GradCAM to save time during sweeps unless needed? Keeping it for now.
+    print("Generating Grad-CAM samples...")
     plot_grad_cam_samples(model, data_test, device, plot_name, OUTPUT_DIR)
 
     wandb.finish()

@@ -1,0 +1,37 @@
+{
+    "sweep_name": "New_model_2nd",
+    "baseline": {
+        "wandb_project": "week3-new-model",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1",
+
+        "img_size": 224,
+        "batch_size": 32,
+        "epochs": 50,
+        "lr": 0.0001,
+        "num_workers": 8,
+        "level": 0,
+        "unfreeze_depth": 0
+
+    },
+    "variations": [
+        {
+            "name": "level_4",
+            "level": 4
+        },
+        {
+            "name": "level_3",
+            "level": 3
+        },
+        {
+            "name": "level_2",
+            "level": 2
+        },
+        {
+            "name": "level_1",
+            "level": 1
+        }
+    ]
+}

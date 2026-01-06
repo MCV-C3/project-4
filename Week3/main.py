@@ -192,7 +192,7 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
     model.eval()
 
     # Ensure gradients are enabled for Grad-CAM even though we are in eval mode
-    target_layers = [model.backbone.layer4[-1]]
+    target_layers = [model.backbone[-1]]
 
     for i in range(num_samples):
         # Pick random images from the test set
@@ -247,6 +247,7 @@ def main(args):
     # Fine-tuning parameters
     UNFREEZE_DEPTH = config.get("unfreeze_depth", 0)
     HEAD_CONFIG = config.get("head_config", None)
+    LEVEL = config.get("level", 4)
 
     # Create Output Directory
     OUTPUT_DIR = os.path.join("experiments", EXPERIMENT_NAME)
@@ -305,7 +306,7 @@ def main(args):
         num_workers=NUM_WORKERS,
     )
 
-    model = WraperModel(num_classes=8)
+    model = WraperModel(num_classes=8, truncation_level=LEVEL)
 
     if HEAD_CONFIG is not None:
         model.modify_classifier_head(
@@ -405,6 +406,7 @@ def main(args):
         "lr": LR,
         "img_size": IMG_SIZE,
         "unfreeze_depth": UNFREEZE_DEPTH,
+        "level": LEVEL,
         "head_config": HEAD_CONFIG,
         "trainable_params": model.get_trainable_parameters(),
         "total_params": model.get_total_parameters(),

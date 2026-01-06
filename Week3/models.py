@@ -56,24 +56,46 @@ class SimpleModel(nn.Module):
 
 
 class WraperModel(nn.Module):
-    def __init__(self, num_classes: int):
+    def __init__(self, num_classes: int, truncation_level: int = 4):
         super(WraperModel, self).__init__()
 
         self.num_classes = num_classes
+        self.truncation_level = truncation_level
 
         # Load pretrained ResNeXt101
-        self.backbone = models.resnext101_32x8d(weights="IMAGENET1K_V1", progress=True)
+        full_model = models.resnext101_32x8d(weights="IMAGENET1K_V1", progress=True)
 
-        # Store the input features dimension of the classifier
-        self.classifier_in_features = (
-            self.backbone.fc.in_features
-        )  # 2048 for ResNeXt101
+        # Extract Stem (Initial layers)
+        stem = [full_model.conv1, full_model.bn1, full_model.relu, full_model.maxpool]
+        
+        # Build Truncated Backbone
+        # Stage references and their output channels
+        stages = [
+            ("layer1", full_model.layer1, 256),
+            ("layer2", full_model.layer2, 512),
+            ("layer3", full_model.layer3, 1024),
+            ("layer4", full_model.layer4, 2048)
+        ]
+        
+        selected_modules = stem
+        current_channels = 64 # output of stem
+        
+        self.stage_names = []
+        for i in range(truncation_level):
+            name, module, channels = stages[i]
+            selected_modules.append(module)
+            self.stage_names.append(name)
+            current_channels = channels
 
+        self.backbone = nn.Sequential(*selected_modules)
+        self.avgpool = full_model.avgpool
+        self.classifier_in_features = current_channels
+
+        # Initialize Classifier
+        self.backbone_fc = nn.Linear(self.classifier_in_features, num_classes)
+        
         # Freeze everything initially
         self.set_parameter_requires_grad()
-
-        # Modify the classifier for the number of classes
-        self.backbone.fc = nn.Linear(self.classifier_in_features, num_classes)
 
         # Track configuration
         self.head_config = {"type": "linear", "hidden_dims": None}
@@ -117,7 +139,7 @@ class WraperModel(nn.Module):
             self.head_config = {"type": "linear", "hidden_dims": None}
         else:
             # Build sequential head with hidden layers
-            layers = []
+            layers = []  # [nn.Flatten()]
             current_dim = self.classifier_in_features
 
             for i, hidden_dim in enumerate(hidden_dims):
@@ -140,10 +162,10 @@ class WraperModel(nn.Module):
             }
 
         # Replace the classifier
-        self.backbone.fc = new_head
+        self.backbone_fc = new_head
 
         print(f"\nNew head structure:")
-        print(f"{self.backbone.fc}")
+        print(f"{self.backbone_fc}")
         print("*" * 25)
 
         return self
@@ -181,29 +203,30 @@ class WraperModel(nn.Module):
 
         # Classification head will be always trainable
         # FOR THE MOMENT (see slides Transfer Learning)
-        for param in self.backbone.fc.parameters():
+        for param in self.backbone_fc.parameters():
             param.requires_grad = True
         print("-> Classifier head (fc) is defrosted.")
 
-        # ResNeXt blocks in reverse order (deepest first)
-        blocks_reversed = [
-            ("layer4", self.backbone.layer4),
-            ("layer3", self.backbone.layer3),
-            ("layer2", self.backbone.layer2),
-            ("layer1", self.backbone.layer1),
-        ]
-
-        # Iterate and unfreeze the specified number of deep blocks
+        # Unfreeze remaining stages from back to front
+        # Note: Since backbone is nn.Sequential, we access from the end
+        trainable_stages = 0
         for i in range(unfreeze_blocks):
-            block_name, block_layer = blocks_reversed[i]
-            print(f"-> Unfreezing block: {block_name}")
-            for param in block_layer.parameters():
-                param.requires_grad = True
+            idx = -1 - i # Last element, second to last...
+            # Ensure we don't try to unfreeze the 'stem' if unfreeze_blocks is high
+            if abs(idx) <= len(self.stage_names):
+                for param in self.backbone[idx].parameters():
+                    param.requires_grad = True
+                trainable_stages += 1
+        
+        self.unfrozen_blocks = trainable_stages
 
         return self
 
     def forward(self, x):
-        return self.backbone(x)
+        x = self.backbone(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        return self.backbone_fc(x)
 
     def get_trainable_parameters(self) -> int:
         # Get the number of trainable parameters
@@ -229,7 +252,7 @@ class WraperModel(nn.Module):
             f"Frozen parameters: {self.get_total_parameters() - self.get_trainable_parameters():,}"
         )
         print(f"\nClassification head:")
-        print(f"  {self.backbone.fc}")
+        print(f"  {self.backbone_fc}")
         print("=" * 60 + "\n")
 
     def extract_feature_maps(self, input_image: torch.Tensor):
@@ -306,6 +329,8 @@ class WraperModel(nn.Module):
         """
         for param in self.backbone.parameters():
             param.requires_grad = False
+        for param in self.backbone_fc.parameters():
+            param.requires_grad = False
 
     def extract_grad_cam(
         self,
@@ -319,7 +344,7 @@ class WraperModel(nn.Module):
         # Ensure gradients are enabled globally for this specific call
         with torch.set_grad_enabled(True):
             with GradCAMPlusPlus(
-                model=self.backbone, target_layers=target_layer
+                model=self, target_layers=target_layer
             ) as cam:
                 grayscale_cam = cam(input_tensor=input_image, targets=targets)[0, :]
 

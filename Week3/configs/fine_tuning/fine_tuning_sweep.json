@@ -1,5 +1,5 @@
 {
-    "sweep_name": "fine_tuning_depth_v3_large",
+    "sweep_name": "fine_tuning_depth_v3_large_extra_v2",
     "baseline": {
         "wandb_project": "week3-fine-tuning",
         "wandb_entity": "c3-team4",

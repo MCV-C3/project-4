@@ -254,7 +254,7 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
     model.eval()
 
     # Ensure gradients are enabled for Grad-CAM even though we are in eval mode
-    target_layers = [model.backbone.layer4[-1]]
+    target_layers = [model.backbone[-1]]
 
     for i in range(num_samples):
         # Pick random images from the test set
@@ -297,7 +297,11 @@ def main(args):
     LR = config.get("lr", 0.001)
     NUM_WORKERS = config.get("num_workers", 4)
     IMG_SIZE = config.get("img_size", 224)
+    
+    # Fine-tuning parameters
     UNFREEZE_DEPTH = config.get("unfreeze_depth", 0)
+    HEAD_CONFIG = config.get("head_config", None)
+    LEVEL = config.get("level", 4)
 
     torch.manual_seed(42)
 
@@ -359,8 +363,17 @@ def main(args):
             pin_memory=True, shuffle=False, num_workers=NUM_WORKERS
         )
 
-        model = WraperModel(num_classes=8).to(device)
+        model = WraperModel(num_classes=8, truncation_level=LEVEL).to(device)
+        
+        if HEAD_CONFIG is not None:
+            model.modify_classifier_head(
+                hidden_dims=HEAD_CONFIG.get("hidden_dims", None),
+                activation=HEAD_CONFIG.get("activation", "relu"),
+            )
+        
         model.fine_tuning(unfreeze_blocks=UNFREEZE_DEPTH)
+
+        model.summary()
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=LR)
@@ -427,7 +440,11 @@ def main(args):
             "batch_size": BATCH_SIZE,
             "lr": LR,
             "img_size": IMG_SIZE,
-            "unfreeze_depth": UNFREEZE_DEPTH
+            "unfreeze_depth": UNFREEZE_DEPTH,
+            "level": LEVEL,
+            "head_config": HEAD_CONFIG,
+            "trainable_params": model.get_trainable_parameters(),
+            "total_params": model.get_total_parameters(),
         }
 
         with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:

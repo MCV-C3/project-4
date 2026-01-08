@@ -102,7 +102,7 @@ class WraperModel(nn.Module):
         self.unfrozen_blocks = 0
 
     def modify_classifier_head(
-        self, hidden_dims: List[int] = None, activation: str = "relu"
+        self, hidden_dims: List[int] = None, activation: str = "relu", dropout: float = 0.0, normalization: str = "none"
     ):
         """
         Examples:
@@ -112,14 +112,8 @@ class WraperModel(nn.Module):
             # Add one hidden layer
             model.modify_classifier_head(hidden_dims=[512])
 
-            # Add two hidden layers (deeper)
-            model.modify_classifier_head(hidden_dims=[1024, 512])
-
-            # Make it less deep with smaller layer
-            model.modify_classifier_head(hidden_dims=[256])
-
-            # Different activation
-            model.modify_classifier_head(hidden_dims=[512], activation='gelu')
+            # With Normalization
+            model.modify_classifier_head(hidden_dims=[512], normalization='batch')
         """
         print("*" * 25)
         print(
@@ -128,15 +122,52 @@ class WraperModel(nn.Module):
         print(f"Output classes: {self.num_classes}")
         print(f"Hidden dimensions: {hidden_dims}")
         print(f"Activation: {activation}")
+        print(f"Dropout: {dropout}")
+        print(f"Normalization: {normalization}")
 
         # Get activation function
         act_fn = self._get_activation(activation)
 
+        # Helper to get 1D norm layer
+        def get_norm_layer(name, channels):
+            if name == 'batch':
+                return nn.BatchNorm1d(channels)
+            elif name == 'layer':
+                return nn.LayerNorm(channels)
+            elif name == 'instance':
+                return nn.InstanceNorm1d(channels)
+            elif name == 'group':
+                 # GroupNorm requires num_groups. Defaulting to 32 or channels/2
+                 groups = 32 if channels % 32 == 0 else max(1, channels // 2)
+                 return nn.GroupNorm(groups, channels)
+            return None
+
         # Build the new classification head
         if hidden_dims is None or len(hidden_dims) == 0:
             # Direct classification (no hidden layers)
-            new_head = nn.Linear(self.classifier_in_features, self.num_classes)
-            self.head_config = {"type": "linear", "hidden_dims": None}
+            # Standard practice: Dropout -> Linear (last layer)
+            # Normalization on the input features? Usually done by the backbone's last bn.
+            # But we can add it if requested.
+            layers = []
+            
+            # Optional: Norm before final layer?
+            # If we are strictly following "Head" config, maybe not.
+            # But let's support it if explicitly asked.
+            norm_layer = get_norm_layer(normalization, self.classifier_in_features)
+            if norm_layer:
+                layers.append(norm_layer)
+
+            if dropout > 0:
+                layers.append(nn.Dropout(p=dropout))
+            
+            layers.append(nn.Linear(self.classifier_in_features, self.num_classes))
+            
+            if len(layers) == 1:
+                new_head = layers[0]
+            else:
+                new_head = nn.Sequential(*layers)
+            
+            self.head_config = {"type": "linear", "hidden_dims": None, "dropout": dropout, "normalization": normalization}
         else:
             # Build sequential head with hidden layers
             layers = []  # [nn.Flatten()]
@@ -144,10 +175,23 @@ class WraperModel(nn.Module):
 
             for i, hidden_dim in enumerate(hidden_dims):
                 layers.append(nn.Linear(current_dim, hidden_dim))
+                
+                # Norm -> Activation OR Activation -> Norm?
+                # Standard ResNet: Conv -> BN -> ReLU
+                # Standard Transformer: Norm -> Attention ...
+                # Let's stick to Linear -> Norm -> Activation -> Dropout
+                norm_layer = get_norm_layer(normalization, hidden_dim)
+                if norm_layer:
+                    layers.append(norm_layer)
+                
                 layers.append(act_fn)
+                
+                if dropout > 0:
+                    layers.append(nn.Dropout(p=dropout))
+                
                 current_dim = hidden_dim
                 print(
-                    f"Layer {i+1}: Linear({layers[-2].in_features} -> {hidden_dim}) + {activation}"
+                    f"Layer {i+1}: Linear({layers[0 if i==0 else -1].in_features if hasattr(layers[0 if i==0 else -1], 'in_features') else 'prev'} -> {hidden_dim}) + Norm({normalization}) + {activation} + Dropout({dropout})"
                 )
 
             # Final classification layer
@@ -159,6 +203,7 @@ class WraperModel(nn.Module):
                 "type": "sequential",
                 "hidden_dims": hidden_dims,
                 "activation": activation,
+                "dropout": dropout
             }
 
         # Replace the classifier

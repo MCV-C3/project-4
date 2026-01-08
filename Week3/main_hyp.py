@@ -95,16 +95,93 @@ def plot_metrics(train_metrics: Dict, test_metrics: Dict, metric_name: str, exp_
 
     plt.close()  # Close the figure to free memory
 
-# Data augmentation example
-def get_data_transforms():
+
+def get_train_transform(augmentation_transform: Optional[str | list], img_size: int):
+    """Build the training transform pipeline with optional data augmentation.
+
+    This function creates a torchvision transform pipeline that converts images
+    to tensors, optionally applies data augmentation, resizes them, and normalizes
+    them for model training.
+
+    Args:
+        augmentation_transform (Optional[str | list]): Specification of which
+            augmentations to apply. Can be one of:
+            - None or "none": no data augmentation.
+            - "all": apply all available augmentations sequentially.
+            - str: the name of a single augmentation.
+            - list or tuple of str: names of multiple augmentations to apply.
+        img_size (int): Target height and width of the output image after resizing.
+
+    Returns:
+        torchvision.transforms.Compose: A composed transform that can be passed
+        to a PyTorch Dataset for training.
+
+    Raises:
+        ValueError: If an unknown augmentation name is provided.
+        TypeError: If `augmentation_transform` has an invalid type.
     """
-    Returns a Compose object with data augmentation transformations.
-    """
-    return Compose([
-        RandomResizedCrop(size=224),
-        RandomHorizontalFlip(),
-        ToTensor(),
-        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+
+    augmentation_transform_map = {
+        "crop": F.RandomResizedCrop(size=(img_size, img_size), scale=(0.7, 1.0)),
+        "horizontal_flip": F.RandomHorizontalFlip(p=.5),
+        "gaussian_noise": F.RandomApply([F.GaussianNoise()], p=0.5),
+        "rotation": F.RandomApply([F.RandomRotation(degrees=[-45, 45])], p=0.5),
+        "photometric_distort": F.RandomPhotometricDistort(),
+        "perspective": F.RandomPerspective(),
+        #"color": F.RandomApply([F.ColorJitter(brightness=.5, hue=.3)], p=0.5),
+    }
+
+    # decide which augmentation ops to apply
+    aug_ops = []
+
+    if augmentation_transform is None or augmentation_transform == "none":
+        aug_ops = []
+
+    elif augmentation_transform == "all":
+        aug_ops = list(augmentation_transform_map.values())
+            # compose pipeline
+        return F.Compose([
+            F.ToImage(),
+            F.ToDtype(torch.float32, scale=True),
+            F.RandomChoice([*aug_ops]),
+            F.Resize(size=(img_size, img_size)),
+            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    elif isinstance(augmentation_transform, str):
+        if augmentation_transform not in augmentation_transform_map:
+            raise ValueError(f"Unknown augmentation '{augmentation_transform}'. "
+                             f"Valid: {list(augmentation_transform_map.keys())} + ['all', None]")
+        aug_ops = [augmentation_transform_map[augmentation_transform]]
+
+    elif isinstance(augmentation_transform, (list, tuple)):
+        unknown = [
+            k for k in augmentation_transform if k not in augmentation_transform_map]
+        if unknown:
+            raise ValueError(f"Unknown augmentations {unknown}. "
+                             f"Valid: {list(augmentation_transform_map.keys())}")
+        aug_ops = [augmentation_transform_map[k]
+                   for k in augmentation_transform]
+        
+        return F.Compose([
+            F.ToImage(),
+            F.ToDtype(torch.float32, scale=True),
+            F.RandomChoice([*aug_ops]),
+            F.Resize(size=(img_size, img_size)),
+            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    else:
+        raise TypeError(
+            "augmentation_transform must be None, 'all', str, list, or tuple.")
+
+    # compose pipeline
+    return F.Compose([
+        F.ToImage(),
+        F.ToDtype(torch.float32, scale=True),
+        *aug_ops,
+        F.Resize(size=(img_size, img_size)),
+        F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
 def plot_computational_graph(model: torch.nn.Module, input_size: tuple, filename: str = "computational_graph"):
@@ -156,6 +233,8 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
     model.eval()
 
     # Ensure gradients are enabled for Grad-CAM even though we are in eval mode
+    # Dynamic target layer selection: use the last element of the backbone
+    # model.backbone is nn.Sequential. We want the last block (which is a ResNet bottleneck usually)
     target_layers = [model.backbone[-1]] 
     
     for i in range(num_samples):
@@ -180,8 +259,68 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
         save_path = os.path.join(output_dir, f"{plot_name}_gradcam_{i}.png")
         plt.imsave(save_path, visualization)
         
+        
         # Log to WandB
         wandb.log({f"grad_cam_{i}": wandb.Image(save_path, caption=f"Class: {dataset.classes[label]}")})
+
+
+# --- Architecture Modification Helpers ---
+def replace_normalization(model: nn.Module, norm_type: str):
+    """
+    Recursively replaces BatchNorm2d layers with other normalization layers.
+    """
+    for name, module in model.named_children():
+        if isinstance(module, nn.BatchNorm2d):
+            # Get the number of channels
+            num_features = module.num_features
+            
+            if norm_type == 'layer':
+                # LayerNorm in 2D is tricky. GroupNorm with 1 group is mathematically equivalent 
+                # to LayerNorm per channel-set, often used as a substitute in CNNs.
+                new_layer = nn.GroupNorm(num_groups=1, num_channels=num_features)
+            elif norm_type == 'instance':
+                new_layer = nn.InstanceNorm2d(num_features, affine=True)
+            elif norm_type == 'group':
+                # Default to 32 groups or num_features if less
+                groups = 32 if num_features % 32 == 0 else num_features // 2
+                groups = max(1, groups)
+                new_layer = nn.GroupNorm(num_groups=groups, num_channels=num_features)
+            elif norm_type == 'batch':
+                continue # Already batch
+            else:
+                print(f"Warning: Unknown norm type {norm_type}, keeping BatchNorm")
+                continue
+            
+            setattr(model, name, new_layer)
+        else:
+            replace_normalization(module, norm_type)
+
+def replace_activation(model: nn.Module, new_activation_name: str):
+    """
+    Recursively replaces nn.ReLU layers with a new activation function.
+    """
+    for name, module in model.named_children():
+        if isinstance(module, nn.ReLU): # Assuming Backbone uses ReLU
+             # Create new activation instance
+            new_layer = get_activation(new_activation_name)
+            setattr(model, name, new_layer)
+        else:
+            replace_activation(module, new_activation_name)
+
+def inject_dropout_after_activation(module: nn.Module, p: float, activation_type: type):
+    """
+    Recursively injects Dropout layers after a specific activation type.
+    """
+    for name, child in module.named_children():
+        if isinstance(child, activation_type):
+            new_layer = nn.Sequential(
+                child,
+                nn.Dropout(p=p)
+            )
+            setattr(module, name, new_layer)
+        else:
+            inject_dropout_after_activation(child, p, activation_type)
+
 
 
 
@@ -252,49 +391,77 @@ def main():
 
     # --- Hyperparameter Setup with Defaults ---
     # Core Params
-    BATCH_SIZE = config.get("batch_size", 32)
-    EPOCHS = config.get("epochs", 20)
-    LR = config.get("lr", 0.001)
     NUM_WORKERS = config.get("num_workers", 8)
     IMG_SIZE = config.get("img_size", 224)
     
     # Model Params
     UNFREEZE_DEPTH = config.get("unfreeze_depth", 0)
-    HEAD_CONFIG = config.get("head_config", None)
-    LEVEL = config.get("level", 4)
-    DROPOUT_RATE = config.get("dropout", 0.0)
-    ACTIVATION_NAME = config.get("activation", "relu")
-    
-    # Optimizer Params
-    OPTIMIZER_NAME = config.get("optimizer", "adam")
-    MOMENTUM = config.get("momentum", 0.0) # For SGD/RMSprop
-    WEIGHT_DECAY = config.get("decay", 0.0)
-    
-    # Scheduler Params
-    SCHEDULER_NAME = config.get("scheduler", "None")
+    HEAD_CONFIG = config.get("head_config", {"hidden_dims": [512], "activation": "relu"})
+    LEVEL = config.get("level", 3)
 
     # Data Augmentation
-    USE_AUGMENTATION = config.get("data_augmentation", False)
+    AUGMENTATION_NAME = config.get("data_augmentation", ["gaussian_noise", "horizontal_flip", "crop", "photometric_distort"])
 
+    # Learning Params
+    DROPOUT_METHOD = config.get("dropout_method", "classifier") # classifier, feature_extractor
+    DROPOUT_RATE = config.get("dropout", 0.0)
+    NORMALIZATION = config.get("norm", "batch") # batch, layer, instance, group
+    L1_REG = config.get("l1_reg", 0.0) # 0.0 means off
+    L2_REG = config.get("l2_reg", 0.0) # Default L2 (weight decay)
+    WEIGHT_DECAY = L2_REG
+    
+    # Hyperparameters
+    BATCH_SIZE = config.get("batch_size", 32)
+    EPOCHS = config.get("epochs", 50)
+    LR = config.get("lr", 0.0001)
+    ACTIVATION_NAME = config.get("activation", "relu")
+    OPTIMIZER_NAME = config.get("optimizer", "adam")
+    MOMENTUM = config.get("momentum", 0.0) # For SGD/RMSprop
+    SCHEDULER_NAME = config.get("scheduler", "None")
+    
     # Dynamic Experiment Name
-    # "hyperparameter_optimization" prefix + params
-    EXPERIMENT_NAME = (
-        f"hyp_opt_"
-        f"lr{LR}_bs{BATCH_SIZE}_"
-        f"opt{OPTIMIZER_NAME}_mom{MOMENTUM}_dec{WEIGHT_DECAY}_"
-        f"sch{SCHEDULER_NAME}_"
-        f"ep{EPOCHS}_"
-        f"aug{int(USE_AUGMENTATION)}_"
-        f"do{DROPOUT_RATE}_"
-        f"frz{UNFREEZE_DEPTH}_"
-        f"act{ACTIVATION_NAME}"
-    )
+    RUN_NAME_FORMAT = config.get("run_name_format", None)
+    
+    if RUN_NAME_FORMAT:
+        config_dict = dict(config)
+        config_dict.update({
+            "DROPOUT_METHOD": DROPOUT_METHOD,
+            "DROPOUT_RATE": DROPOUT_RATE,
+            "NORMALIZATION": NORMALIZATION,
+            "L1_REG": L1_REG,
+            "L2_REG": L2_REG,
+            "BATCH_SIZE": BATCH_SIZE,
+            "EPOCHS": EPOCHS,
+            "LR": LR,
+            "OPTIMIZER_NAME": OPTIMIZER_NAME,
+            "MOMENTUM": MOMENTUM,
+            "SCHEDULER_NAME": SCHEDULER_NAME,
+        })
+        try:
+            EXPERIMENT_NAME = RUN_NAME_FORMAT.format(**config_dict)
+        except KeyError as e:
+            print(f"Warning: Key {e} for run_name_format not found in config. Using default naming.")
+            RUN_NAME_FORMAT = None # Fallback
 
-    # Update WandB run name to match (useful for UI)
+    if not RUN_NAME_FORMAT:
+        # Default naming convention
+        EXPERIMENT_NAME = (
+            f"hyp_opt_"
+            f"do{DROPOUT_RATE}({DROPOUT_METHOD})_"
+            f"norm{NORMALIZATION}_"
+            f"l1{l1_reg}_"
+            f"l2{l2_reg}_"
+            f"bs{batch_size}_"
+            f"ep{epochs}_"
+            f"lr{lr}_"
+            f"opt{optimizer}_"
+            f"mom{momentum}_"
+            f"sch{scheduler}_"
+        )
     wandb.run.name = EXPERIMENT_NAME
 
     DATASET_PATH = config.get("dataset_path", "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1")
-    OUTPUT_DIR = os.path.join("experiments", "sweeps", EXPERIMENT_NAME)
+    OUTPUT_DIR = os.path.join("experiments", "hyp_opt", EXPERIMENT_NAME)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print(f"--- Experiment: {EXPERIMENT_NAME} ---")
@@ -304,23 +471,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # --- Data Loading ---
-    if USE_AUGMENTATION:
-        print("Using Data Augmentation")
-        transform_train = F.Compose([
-            F.ToImage(),
-            F.ToDtype(torch.float32, scale=True),
-            F.RandomResizedCrop(size=(IMG_SIZE, IMG_SIZE), scale=(0.8, 1.0)),
-            F.RandomHorizontalFlip(),
-            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-    else:
-        print("Using Basic Transforms (No Augmentation)")
-        transform_train = F.Compose([
-            F.ToImage(),
-            F.ToDtype(torch.float32, scale=True),
-            F.Resize(size=(IMG_SIZE, IMG_SIZE)),
-            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+    print(f"Using Data Augmentation: {AUGMENTATION_NAME}")
+    transform_train = get_train_transform(AUGMENTATION_NAME, IMG_SIZE)
 
     # Test transform is always just clean resize
     transform_test = F.Compose([
@@ -338,36 +490,79 @@ def main():
     test_loader = DataLoader(data_test, batch_size=BATCH_SIZE, pin_memory=True, shuffle=False, num_workers=NUM_WORKERS)
 
     # --- Model Setup ---
+    print(f"Initializing model with Truncation Level: {LEVEL}")
     model = WraperModel(num_classes=8, truncation_level=LEVEL)
-
-    if HEAD_CONFIG is not None:
-        model.modify_classifier_head(
-            hidden_dims=HEAD_CONFIG.get("hidden_dims", None),
-            activation=HEAD_CONFIG.get("activation", "relu"),
-        )
-
-    model = model.to(device)
     
-    # 1. Unfreeze layers
+    # 1. Apply Normalization Changes (Pre-Head)
+    # Replaces BatchNorm with other types if requested. 
+    # Must be done before moving to device to ensure new layers are properly registered? 
+    # Actually safe to do before.
+    if NORMALIZATION != "batch":
+        print(f"Applying {NORMALIZATION} normalization to backbone...")
+        replace_normalization(model.backbone, NORMALIZATION)
+
+    # 2. Modify Activations in Feature Extractor (Backbone)
+    # Default ResNeXt uses ReLU. If we want to sweep activations for the whole model (not just head),
+    # we should replace them here.
+    if ACTIVATION_NAME.lower() != "relu":
+         print(f"Replacing backbone activations with {ACTIVATION_NAME}...")
+         replace_activation(model.backbone, ACTIVATION_NAME)
+
+    # 3. Modify Dropout in Feature Extractor (if requested)
+    # This edits the backbone layers (after activations)
+    if DROPOUT_METHOD == "feature_extractor" and DROPOUT_RATE > 0:
+        # We need to know which activation to target. 
+        # If we replaced it, it's the new one. If not, it's ReLU.
+        # Note: get_activation returns an instance, we need the type.
+        act_instance = get_activation(ACTIVATION_NAME)
+        act_type = type(act_instance)
+        
+        print(f"Applying Dropout ({DROPOUT_RATE}) to Feature Extractor (after {act_type.__name__})")
+        inject_dropout_after_activation(model.backbone, DROPOUT_RATE, act_type)
+
+    # 3. Modify Classifier Head
+    # Logic: If method is classifier, we pass dropout to the head builder.
+    # If method is feature_extractor, head gets 0 dropout.
+    head_dropout = DROPOUT_RATE if DROPOUT_METHOD == "classifier" else 0.0
+    
+    # Check if we need to modify the head (either due to custom config OR dropout)
+    # If HEAD_CONFIG is None, we default to no hidden layers (standard Linear head)
+    if HEAD_CONFIG is not None or head_dropout > 0:
+        current_config = HEAD_CONFIG if HEAD_CONFIG is not None else {}
+        hidden_dims = current_config.get("hidden_dims", [512])
+        activation = current_config.get("activation", "relu")
+        
+        print(f"Building Classifier Head. Hidden Dims: {hidden_dims}, Activation: {activation}, Dropout: {head_dropout}, Normalization: {NORMALIZATION}")
+        model.modify_classifier_head(
+            hidden_dims=hidden_dims,
+            activation=activation,
+            dropout=head_dropout,
+            normalization=NORMALIZATION
+        )
+    
+    # 4. Unfreeze layers (Fine Tuning)
+    # Should be done after replacing head, so head params are tracked correctly.
+    print(f"Setting Unfreeze Depth: {UNFREEZE_DEPTH}")
     model.fine_tuning(unfreeze_blocks=UNFREEZE_DEPTH)
     
+    # Move to device
+    model = model.to(device)
+    
+    # --- Model Structure Verification ---
+    print("\n" + "="*50)
+    print("FINAL MODEL STRUCTURE VERIFICATION")
+    print("="*50)
     model.summary()
-
-    # 2. Modify Head (for Dropout and Activation experimentation)
-    # The default head is just a Linear layer. We replace it to add capability for dropout/activation
-    # We create a new structure: Linear(in, in) -> Activation -> Dropout -> Linear(in, classes)
-    # This preserves the feature dimension for one extra layer to apply activation/dropout
-    in_features = model.backbone_fc.in_features
-    num_classes = 8
     
-    model.backbone_fc = nn.Sequential(
-        nn.Linear(in_features, in_features),
-        get_activation(ACTIVATION_NAME),
-        nn.Dropout(p=DROPOUT_RATE),
-        nn.Linear(in_features, num_classes)
-    ).to(device)
-    
-    print(f"Modified Head: {model.backbone_fc}")
+    # Print samples of the backbone to verify deep changes (activations, normalization, dropout)
+    print("\n--- Backbone Sample: Layer 1, Block 0 ---")
+    if hasattr(model.backbone, 'layer1'):
+        print(model.backbone.layer1[0])
+        
+    print("\n--- Backbone Sample: Layer 4, Last Block ---")
+    if hasattr(model.backbone, 'layer4'):
+         print(model.backbone.layer4[-1])
+    print("="*50 + "\n")
 
     # --- Optimizer & Scheduler ---
     optimizer = get_optimizer(model, OPTIMIZER_NAME, LR, MOMENTUM, WEIGHT_DECAY)
@@ -380,8 +575,42 @@ def main():
 
     wandb.watch(model, log="all")
 
+    plot_name = os.path.basename(EXPERIMENT_NAME)
+    best_test_accuracy = 0.0
+    best_epoch = 0
+
     for epoch in tqdm.tqdm(range(EPOCHS), desc="TRAINING"):
-        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer, device)
+
+        # Custom train step for L1 regularization
+        model.train()
+        train_loss = 0.0
+        correct, total = 0, 0
+    
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+    
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            
+            # Add L1 Regularization
+            if L1_REG > 0:
+                l1_penalty = torch.tensor(0., device=device)
+                for param in model.parameters():
+                    l1_penalty += torch.norm(param, 1)
+                loss += L1_REG * l1_penalty
+    
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+    
+            train_loss += loss.item() * inputs.size(0)
+            _, predicted = outputs.max(1)
+            correct += (predicted == labels).sum().item()
+            total += labels.size(0)
+    
+        train_loss = train_loss / total
+        train_accuracy = correct / total
+        
         test_loss, test_accuracy = test(model, test_loader, criterion, device)
         
         # Step the scheduler if it exists
@@ -400,9 +629,17 @@ def main():
         test_losses.append(test_loss)
         test_accuracies.append(test_accuracy)
 
+        # Save best model logic
+        if test_accuracy > best_test_accuracy:
+            best_test_accuracy = test_accuracy
+            best_epoch = epoch + 1
+            save_path = os.path.join(OUTPUT_DIR, f"{plot_name}.pth")
+            torch.save(model.state_dict(), save_path)
+
         print(f"Epoch {epoch + 1}/{EPOCHS} - "
               f"Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}, "
-              f"Test Loss: {test_loss:.4f}, Test Acc: {test_accuracy:.4f}")
+              f"Test Loss: {test_loss:.4f}, Test Acc: {test_accuracy:.4f}" + 
+              (f" [BEST]" if test_accuracy == best_test_accuracy else ""))
         
         wandb.log({
             "epoch": epoch + 1,
@@ -412,23 +649,51 @@ def main():
             "test_accuracy": test_accuracy
         })
         
-    plot_name = os.path.basename(EXPERIMENT_NAME)
-
-    # Save Model
-    save_path = os.path.join(OUTPUT_DIR, f"{plot_name}.pth")
-    torch.save(model.state_dict(), save_path)
+    # Plot results
+    print(f"Best model saved with accuracy: {best_test_accuracy:.4f} at epoch {best_epoch}")
     
     # Plot results
     print("Generating Plots...")
     plot_metrics({"loss": train_losses, "accuracy": train_accuracies}, {"loss": test_losses, "accuracy": test_accuracies}, "loss", plot_name, OUTPUT_DIR)
     plot_metrics({"loss": train_losses, "accuracy": train_accuracies}, {"loss": test_losses, "accuracy": test_accuracies}, "accuracy", plot_name, OUTPUT_DIR)
-   
-    print("Generating Confusion Matrix...")
+
     plot_confusion_matrix(model, test_loader, device, data_test.classes, plot_name, OUTPUT_DIR)
     
     # Skip GradCAM to save time during sweeps unless needed? Keeping it for now.
-    print("Generating Grad-CAM samples...")
     plot_grad_cam_samples(model, data_test, device, plot_name, OUTPUT_DIR)
+
+    plot_grad_cam_samples(model, data_test, device, plot_name, OUTPUT_DIR)
+
+    # Save Results JSON
+    results = {
+        "experiment_name": EXPERIMENT_NAME,
+        "best_test_accuracy": max(test_accuracies),
+        "best_epoch": best_epoch,
+        "best_test_loss": min(test_losses),
+        "final_test_accuracy": test_accuracies[-1],
+        "final_test_loss": test_losses[-1],
+        "train_accuracy": train_accuracies[-1],
+        "train_loss": train_losses[-1],
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "lr": LR,
+        "optimizer": OPTIMIZER_NAME,
+        "l2_reg": WEIGHT_DECAY,
+        "l1_reg": L1_REG,
+        "dropout": DROPOUT_RATE,
+        "dropout_method": DROPOUT_METHOD,
+        "normalization": NORMALIZATION,
+        "augmentation": AUGMENTATION_NAME,
+        "unfreeze_depth": UNFREEZE_DEPTH,
+        "head_config": HEAD_CONFIG,
+        "level": LEVEL,
+        "trainable_params": model.get_trainable_parameters(),
+        "total_params": model.get_total_parameters(),
+    }
+
+    with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:
+        json.dump(results, f, indent=4)
+    print(f"Results saved to {os.path.join(OUTPUT_DIR, 'results.json')}")
 
     wandb.finish()
 

@@ -2,7 +2,6 @@ import torchvision.transforms.v2 as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torchviz import make_dot
-from torchvision.transforms import Compose, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
@@ -21,7 +20,7 @@ from typing import *
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-from models import SimpleModel, WraperModel
+from models import WraperModel
 
 # Train function
 
@@ -110,7 +109,11 @@ def plot_metrics(train_metrics: Dict, test_metrics: Dict, metric_name: str, exp_
     plt.close()  # Close the figure to free memory
 
 
-def get_train_transform(augmentation_transform: Optional[str | list], img_size: int):
+def get_train_transform(
+        augmentation_transform: Optional[str | list],
+        combination_mode: Optional[str],
+        img_size: int
+    ):
     """Build the training transform pipeline with optional data augmentation.
 
     This function creates a torchvision transform pipeline that converts images
@@ -124,6 +127,10 @@ def get_train_transform(augmentation_transform: Optional[str | list], img_size: 
             - "all": apply all available augmentations sequentially.
             - str: the name of a single augmentation.
             - list or tuple of str: names of multiple augmentations to apply.
+        combination_mode (Optional[str]): Specification of the way multiple 
+            transforms are going to be combined. Can be one of:
+            - None or "none" or "all": apply all the transforms for an image sample.
+            - "choice": randomly chooses only one transform for an image sample.
         img_size (int): Target height and width of the output image after resizing.
 
     Returns:
@@ -153,14 +160,6 @@ def get_train_transform(augmentation_transform: Optional[str | list], img_size: 
 
     elif augmentation_transform == "all":
         aug_ops = list(augmentation_transform_map.values())
-            # compose pipeline
-        return F.Compose([
-            F.ToImage(),
-            F.ToDtype(torch.float32, scale=True),
-            F.RandomChoice([*aug_ops]),
-            F.Resize(size=(img_size, img_size)),
-            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
 
     elif isinstance(augmentation_transform, str):
         if augmentation_transform not in augmentation_transform_map:
@@ -176,27 +175,31 @@ def get_train_transform(augmentation_transform: Optional[str | list], img_size: 
                              f"Valid: {list(augmentation_transform_map.keys())}")
         aug_ops = [augmentation_transform_map[k]
                    for k in augmentation_transform]
-        
-        return F.Compose([
-            F.ToImage(),
-            F.ToDtype(torch.float32, scale=True),
-            F.RandomChoice([*aug_ops]),
-            F.Resize(size=(img_size, img_size)),
-            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
 
     else:
         raise TypeError(
             "augmentation_transform must be None, 'all', str, list, or tuple.")
 
     # compose pipeline
-    return F.Compose([
-        F.ToImage(),
-        F.ToDtype(torch.float32, scale=True),
-        *aug_ops,
-        F.Resize(size=(img_size, img_size)),
-        F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
+    if combination_mode == "choice":
+        return F.Compose([
+            F.ToImage(),
+            F.ToDtype(torch.float32, scale=True),
+            F.RandomChoice(aug_ops),
+            F.Resize(size=(img_size, img_size)),
+            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+    elif combination_mode is None or combination_mode == "none" or combination_mode == "all":
+        return F.Compose([
+            F.ToImage(),
+            F.ToDtype(torch.float32, scale=True),
+            *aug_ops,
+            F.Resize(size=(img_size, img_size)),
+            F.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+    else:
+        raise TypeError(
+            "combination_mode must be None, 'none', or 'all'.")
 
 
 def plot_computational_graph(model: torch.nn.Module, input_size: tuple, filename: str = "computational_graph"):
@@ -315,16 +318,18 @@ def main(args):
     if not variations:
         # Backwards compatible: run single experiment
         variations = [{"name": str(config.get("data_augmentation", "none")),
-                       "data_augmentation": config.get("data_augmentation", "none")}]
+                       "data_augmentation": config.get("data_augmentation", "none"),
+                       "combination_mode": config.get("combination_mode", "none")}]
 
     for var in variations:
         DATA_AUGMENTATION = var.get("data_augmentation", "none")
+        COMBINATION_MODE = var.get("combination_mode", "none")
         EXPERIMENT_NAME = var.get("name", str(DATA_AUGMENTATION))
 
         # Create Output Directory (per variation)
         OUTPUT_DIR = os.path.join("data_augmentation_experiments", EXPERIMENT_NAME)
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        print(f"\n=== Running variation: {EXPERIMENT_NAME} | aug={DATA_AUGMENTATION} ===")
+        print(f"\n=== Running variation: {EXPERIMENT_NAME} | aug={DATA_AUGMENTATION} | comb={COMBINATION_MODE} ===")
         print(f"Output directory: {OUTPUT_DIR}")
 
         # Initialize WandB (per variation)
@@ -339,7 +344,7 @@ def main(args):
         )
 
         # Data Augmentation for Training
-        train_transformation = get_train_transform(DATA_AUGMENTATION, IMG_SIZE)
+        train_transformation = get_train_transform(DATA_AUGMENTATION, COMBINATION_MODE, IMG_SIZE)
 
         # Data Augmentation for Testing -> just clean resize and normalize
         test_transformation = F.Compose([

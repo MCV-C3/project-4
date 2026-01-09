@@ -1,6 +1,6 @@
 {
     "experiment_name": "week3_data_augmentation",
-    "wandb_project": "week3-data-augmentation",
+    "wandb_project": "week3-data-augmentation-2",
     "wandb_entity": "c3-team4",
     "wandb_mode": "online",
     
@@ -43,8 +43,14 @@
             "data_augmentation": "perspective"
         },
         {
-            "name": "all",
-            "data_augmentation": "all"
+            "name": "all_choice",
+            "data_augmentation": "all",
+            "combination_mode": "choice"
+        },
+        {
+            "name": "all_accum",
+            "data_augmentation": "all",
+            "combination_mode": "all"
         }
     ]
 }

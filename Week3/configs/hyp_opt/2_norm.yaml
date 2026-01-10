@@ -1,0 +1,41 @@
+project: week3-norm
+entity: c3-team4
+program: main_hyp.py
+method: grid
+metric:
+  name: test_accuracy
+  goal: maximize
+parameters:
+  batch_size:
+    value: 32
+  lr:
+    value: 0.0001
+  epochs:
+    value: 50
+  num_workers:
+    value: 8
+  unfreeze_depth:
+    values: [0, 1, 2, 3] # Retrain layers to adapt to new norm
+  level:
+    value: 3
+  head_config:
+    value: {"hidden_dims": [512], "activation": "relu"}
+  data_augmentation:
+    value: "gaussian_noise"
+  optimizer:
+    value: "adam"
+  momentum:
+    value: 0.0
+  decay:
+    value: 0.0
+  # To Update after first sweep
+  dropout:
+    value: 0.5 
+  dropout_method:
+    value: "classifier"
+    
+  norm:
+    values: ["batch", "layer", "instance", "group"]
+  
+  run_name_format:
+    value: "Norm_{norm}_Unf{unfreeze_depth}"

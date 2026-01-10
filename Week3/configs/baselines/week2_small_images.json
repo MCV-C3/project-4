@@ -1,0 +1,40 @@
+{
+    "experiment_name": "week2_small_images",
+    "wandb_project": "week3-baselines",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_large_train",
+    "data_augmentation": true,
+    "img_size": 32, 
+    "num_workers": 4,
+    
+    "model_params": {
+        "hidden_layers": [
+            1024,
+            512,
+            256,
+            128
+        ],
+        "dropout": 0.1,
+        "activation": "leaky_relu"
+    },
+
+    "batch_size": 256,
+    "epochs": 200,
+
+    "lr": 1e-3,
+    "optimizer_name": "adamw",
+    "optimizer_params": {
+        "weight_decay": 0
+    },
+
+    "early_stopping_patience": 15,
+    "early_stopping_delta": 0.0001,
+    
+    "scheduler_name": "cosineannealinglr",
+    "scheduler_params": {
+        "T_max": 80,
+        "eta_min": 1e-6
+    }
+}

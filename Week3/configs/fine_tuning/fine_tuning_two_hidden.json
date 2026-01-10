@@ -1,0 +1,21 @@
+{
+    "experiment_name": "fine_tuning_two_hidden_layers",
+    "wandb_project": "week3",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    
+     "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1",
+    
+    "batch_size": 32,
+    "epochs": 20,
+    "lr": 0.001,
+    "num_workers": 4,
+    "img_size": 224,
+    
+    "unfreeze_depth": 2,
+    
+    "head_config": {
+        "hidden_dims": [1024, 512],
+        "activation": "relu"
+    }
+}

@@ -1,0 +1,44 @@
+project: week3-hyp-opt
+entity: c3-team4
+program: main_hyp.py
+method: bayes # random, grid, bayes
+metric:
+  name: test_accuracy
+  goal: maximize
+parameters:
+  num_workers:
+    value: 8
+  unfreeze_depth:
+    value: 1
+  level:
+    value: 3
+  head_config:
+    value: {"hidden_dims": [512], "activation": "relu"}
+  data_augmentation:
+    value: "gaussian_noise"
+  dropout:
+    value: 0.5
+  dropout_method:
+    value: "classifier"
+  norm:
+    value: "batch"
+  l1_reg:
+    value: 0
+  l2_reg:
+    value: 0
+    
+  batch_size:
+    values: [10, 20, 40, 60, 80, 100]
+  epochs:
+    values: [10, 50, 100]  
+  lr:
+    values: [0.0001, 0.001, 0.01, 0.1, 0.2, 0.3]
+  optimizer:
+    values: ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+  momentum:
+    values: [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
+  scheduler:
+    values: ['StepLR', 'ReduceLROnPlateau', 'LinearLR', 'CosineAnnealingLR']
+
+  run_name_format:
+    value: "Batch_{batch_size}_Epochs_{epochs}_LR_{lr}_Opt_{optimizer}_Momentum_{momentum}_Scheduler_{scheduler}"

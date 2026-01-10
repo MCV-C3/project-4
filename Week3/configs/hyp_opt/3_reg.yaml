@@ -1,0 +1,46 @@
+project: week3-regul
+entity: c3-team4
+program: main_hyp.py
+method: grid
+metric:
+  name: test_accuracy
+  goal: maximize
+parameters:
+  batch_size:
+    value: 32
+  lr:
+    value: 0.0001
+  epochs:
+    value: 50
+  num_workers:
+    value: 8
+  level:
+    value: 3
+  head_config:
+    value: {"hidden_dims": [512], "activation": "relu"}
+  data_augmentation:
+    value: "gaussian_noise"
+  optimizer:
+    value: "adam"
+  momentum:
+    value: 0.0
+  decay:
+    value: 0.0
+    
+  # To Update after previous sweeps
+  unfreeze_depth:
+    value: 1  
+  dropout:
+    value: 0.5
+  dropout_method:
+    value: "classifier"
+  norm:
+    value: "batch"
+    
+  l1_reg:
+    values: [0.5, 0.1, 0.01, 0.001, 0]
+  l2_reg:
+    values: [0.5, 0.1, 0.01, 0.001, 0]
+    
+  run_name_format:
+    value: "L1_{l1_reg}_L2_{l2_reg}"

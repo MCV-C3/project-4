@@ -1,7 +1,6 @@
 import torchvision.transforms.v2 as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
-from torchviz import make_dot
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
@@ -149,7 +148,6 @@ def get_train_transform(
         "rotation": F.RandomApply([F.RandomRotation(degrees=[-45, 45])], p=0.5),
         "photometric_distort": F.RandomPhotometricDistort(),
         "perspective": F.RandomPerspective(),
-        #"color": F.RandomApply([F.ColorJitter(brightness=.5, hue=.3)], p=0.5),
     }
 
     # decide which augmentation ops to apply
@@ -202,27 +200,6 @@ def get_train_transform(
             "combination_mode must be None, 'none', or 'all'.")
 
 
-def plot_computational_graph(model: torch.nn.Module, input_size: tuple, filename: str = "computational_graph"):
-    """
-    Generates and saves a plot of the computational graph of the model.
-
-    Args:
-        model (torch.nn.Module): The PyTorch model to visualize.
-        input_size (tuple): The size of the dummy input tensor (e.g., (batch_size, input_dim)).
-        filename (str): Name of the file to save the graph image.
-    """
-    model.eval()  # Set the model to evaluation mode
-
-    # Generate a dummy input based on the specified input size
-    dummy_input = torch.randn(*input_size)
-
-    # Create a graph from the model
-    graph = make_dot(model(dummy_input), params=dict(
-        model.named_parameters()), show_attrs=True).render(filename, format="png")
-
-    print(f"Computational graph saved as {filename}")
-
-
 def plot_confusion_matrix(model, dataloader, device, classes, plot_name, output_dir):
     model.eval()
     all_preds = []
@@ -252,7 +229,6 @@ def plot_confusion_matrix(model, dataloader, device, classes, plot_name, output_
     plt.close()
 
 
-# TODO: improve this function to store relevant plots
 def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_samples=3):
     model.eval()
 
@@ -271,7 +247,7 @@ def plot_grad_cam_samples(model, dataset, device, plot_name, output_dir, num_sam
         grayscale_cam = model.extract_grad_cam(
             img_tensor.unsqueeze(0).to(device), target_layers, targets)
 
-        # Convert tensor back to image for visualization [cite: 426]
+        # Convert tensor back to image for visualization
         # Reverse normalization for visualization
         img_np = img_tensor.permute(1, 2, 0).cpu().numpy()
         img_np = (img_np * np.array([0.229, 0.224, 0.225])
@@ -464,8 +440,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Week 3 Main")
     parser.add_argument("--config", type=str, required=True,
                         help="Path to JSON configuration file")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Run a single batch for testing")
     args = parser.parse_args()
 
     main(args)

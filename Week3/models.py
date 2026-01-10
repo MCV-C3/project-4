@@ -102,7 +102,11 @@ class WraperModel(nn.Module):
         self.unfrozen_blocks = 0
 
     def modify_classifier_head(
-        self, hidden_dims: List[int] = None, activation: str = "relu", dropout: float = 0.0, normalization: str = "none"
+        self, 
+        hidden_dims: List[int] = None,
+        activation: str = "relu",
+        dropout: float = 0.0,
+        normalization: str = "none"
     ):
         """
         Examples:

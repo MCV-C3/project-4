@@ -6,4 +6,4 @@
 #SBATCH -o logs/aug_%u_%j.out
 #SBATCH -e logs/aug_%u_%j.err
 
-python main_aug.py --config configs/data_augmentation/data_augmentation2.json
+python main_ViT.py --config configs/ViT/classifier_one_small_hidden_layer.json

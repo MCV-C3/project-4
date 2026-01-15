@@ -1,0 +1,28 @@
+experiment_name: "Baseline_Test"
+project: week4-init
+entity: c3-team4
+
+# Modular parameters
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  val_split: 0.5
+  img_size: 32
+  batch_size: 32
+  num_workers: 4
+  num_classes: 8
+
+model:
+  name: "BasicCNN"
+  channels: [32, 32]
+  kernel_size: 3
+  use_bn: false
+  dropout: 0.0
+  fc_units: []
+
+training:
+  epochs: 20
+  learning_rate: 0.001
+  optimizer: "adam"  
+  criterion: "crossentropy"
+  seed: 42

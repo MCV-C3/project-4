@@ -12,3 +12,5 @@ dependencies:
   - wandb
   - pandas
   - seaborn
+  - thop
+  - pyyaml

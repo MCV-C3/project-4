@@ -15,12 +15,12 @@ def get_model_summary(model, input_size, device):
     dummy_input = torch.randn(1, *input_size).to(device)
     
     # 1. Parameters
-    params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    params = sum(p.numel() for p in model.parameters()) #  if p.requires_grad
     
     # 2. FLOPs (using thop if available)
     flops = 0.0
-    # if profile:
-    #     flops, _ = profile(model, inputs=(dummy_input, ), verbose=False)
+    if profile:
+        flops, _ = profile(model, inputs=(dummy_input, ), verbose=False)
     
     # 3. Latency (Average of 100 runs)
     # Warmup

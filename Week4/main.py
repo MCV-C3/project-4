@@ -63,9 +63,12 @@ def main(config_path):
     # Change the config for the sweeps
     if wandb.run.sweep_id:
         cfg = configure_sweep(cfg)
+        output_dir = os.path.join("results", f"sweeps", wandb.run.sweep_id, wandb.run.name)
+    else:
+        # Standard run
+        output_dir = os.path.join("results", f"{cfg['experiment_name']}_{wandb.run.id}")
         
     # Create output folder
-    output_dir = os.path.join("results", f"{cfg['experiment_name']}_{wandb.run.id}")
     os.makedirs(output_dir, exist_ok=True)
     print("Output directory:", output_dir)
     
@@ -123,6 +126,11 @@ def main(config_path):
     # History containers (for plotting later)
     history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
 
+    # Initialize Best Model Trackers 
+    best_val_acc = 0.0
+    best_epoch = 0
+    best_model_path = os.path.join(output_dir, "best_model.pth")
+
     # Training Loop
     print("Starting training...")
     for epoch in tqdm.tqdm(range(cfg['training']['epochs']), desc="TRAINING THE MODEL"):
@@ -157,9 +165,6 @@ def main(config_path):
         val_loss = 0.0
         val_correct = 0
         val_total = 0
-        all_preds = []
-        all_labels = []
-        all_probs = []
 
         with torch.no_grad():
             for inputs, labels in val_loader:
@@ -175,10 +180,6 @@ def main(config_path):
                 val_correct += (predicted == labels).sum().item()
                 val_total += labels.size(0)
                 
-                all_preds.extend(predicted.cpu().numpy())
-                all_labels.extend(labels.cpu().numpy())
-                all_probs.extend(torch.softmax(outputs, dim=1).cpu().numpy())
-
         val_epoch_loss = val_loss / val_total
         val_epoch_acc = val_correct / val_total
         
@@ -190,24 +191,71 @@ def main(config_path):
         
         print(f"Epoch {epoch+1}/{cfg['training']['epochs']} | Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} | Val Loss: {val_epoch_loss:.4f} Acc: {val_epoch_acc:.4f}")
         
+        if val_epoch_acc > best_val_acc:
+            best_val_acc = val_epoch_acc
+            best_epoch = epoch + 1
+            torch.save(model.state_dict(), best_model_path)
+            print(f"  >>> New Best Model! Saved (Val Acc: {best_val_acc:.4f})")
+        
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": epoch_loss,
             "train_accuracy": epoch_acc,
             "val_loss": val_epoch_loss,
-            "val_accuracy": val_epoch_acc
+            "val_accuracy": val_epoch_acc,
+            "best_val_accuracy": best_val_acc
         })
 
-    # Post-Training Evaluation
-    precision, recall, f1 = calculate_classification_metrics(all_labels, all_preds)
-    efficiency_score = compute_efficiency_score(val_epoch_acc, params)
+    print(f"\nTraining finished. Loading best model from Epoch {best_epoch} (Acc: {best_val_acc:.4f})...")
+    model.load_state_dict(torch.load(best_model_path))
     
-    print(f"\nFinal Results:")
-    print(f"Efficiency Ratio (Acc/Params*100k): {efficiency_score:.4f}")
+    # -------------------------------------------------------------------------
+    # Evaluation of the Loaded Best Model (on Validation Set again to get the final results).
+    # -------------------------------------------------------------------------
+    print("Evaluating Best Model on Validation Set...")
+    model.eval()
+    
+    val_loss = 0.0
+    val_correct = 0
+    val_total = 0
+    
+    # We need to re-generate these lists using the BEST model weights
+    all_preds = []
+    all_labels = []
+    all_probs = []
+
+    with torch.no_grad():
+        for inputs, labels in val_loader: 
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            # Forward pass
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            
+            # Track loss and accuracy
+            val_loss += loss.item() * inputs.size(0)
+            _, predicted = outputs.max(1)
+            val_correct += (predicted == labels).sum().item()
+            val_total += labels.size(0)
+            
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(torch.softmax(outputs, dim=1).cpu().numpy())
+            
+    # Calculate aggregate metrics for the best model
+    final_val_acc = val_correct / val_total
+    final_val_loss = val_loss / val_total
+    
+    precision, recall, f1 = calculate_classification_metrics(all_labels, all_preds)
+    efficiency_score = compute_efficiency_score(final_val_acc, params)
+    
+    print(f"\nBest Validation Results (Epoch {best_epoch}):")
+    print(f"Accuracy: {final_val_acc:.4f}")
+    print(f"Efficiency Ratio: {efficiency_score:.4f}")
     print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
     
     wandb.log({
-        "final_val_accuracy": val_epoch_acc,
+        "final_val_accuracy": final_val_acc,
         "efficiency_score": efficiency_score,
         "precision": precision,
         "recall": recall,
@@ -218,8 +266,9 @@ def main(config_path):
     results_data = {
         "configuration": cfg,
         "metrics": {
-            "final_val_accuracy": val_epoch_acc,
-            "final_val_loss": val_epoch_loss,
+            "best_epoch": best_epoch,
+            "final_val_accuracy": final_val_acc,
+            "final_val_loss": final_val_loss,
             "efficiency_score": efficiency_score,
             "precision": precision,
             "recall": recall,
@@ -237,6 +286,7 @@ def main(config_path):
     print(f"Results and config saved to {json_path}")
 
     # Generate and Save Plots
+    # (History is safe to use as-is because it tracks the whole training curve)
     train_metrics = {
         "loss": history['train_loss'], 
         "accuracy": history['train_acc']
@@ -246,11 +296,10 @@ def main(config_path):
         "accuracy": history['val_acc']
     }
 
-    # Plot Loss and Accuracy Curves
     plot_metrics(train_metrics, val_metrics, "loss", output_dir)
     plot_metrics(train_metrics, val_metrics, "accuracy", output_dir)
 
-    # Plot Confusion Matrix and ROC Curve
+    # Plot Confusion Matrix and ROC Curve (Now using the correct 'all_preds' from best model)
     plot_confusion_matrix(all_labels, all_preds, classes, output_dir)
     plot_roc_curve(all_labels, all_probs, classes, output_dir)
     
@@ -261,10 +310,10 @@ def main(config_path):
     
     # GradCAM not needed for the moment
     
-    # Save Model
-    model_save_path = os.path.join(output_dir, "model_weights.pth")
-    torch.save(model.state_dict(), model_save_path)
-    print(f"Model saved to {model_save_path}")
+    # # Save Model
+    # model_save_path = os.path.join(output_dir, "model_weights.pth")
+    # torch.save(model.state_dict(), model_save_path)
+    # print(f"Model saved to {model_save_path}")
     
     wandb.finish()
 

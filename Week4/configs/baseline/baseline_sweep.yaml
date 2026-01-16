@@ -1,0 +1,21 @@
+project: week4-init
+entity: c3-team4
+program: main.py
+method: bayes  # or grid, random
+metric:
+  name: final_val_accuracy
+  goal: maximize
+parameters:
+  # Using dot notation to match your cfg dictionary structure
+  data.batch_size:
+    values: [32, 64]
+    
+  model.dropout:
+    values: [0.0, 0.5]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/baseline/baseline.yaml" # Loads the base config first

@@ -15,6 +15,7 @@ from torchvision.transforms import v2 as transforms
 
 from models.base_net import BasicCNN
 from models.squeeze_net import SqueezeNet
+from models.shufflenet_mini import ShuffleNetMini
 
 from utils.metrics import (
     get_model_summary, 
@@ -104,6 +105,12 @@ def main(config_path):
         model = BasicCNN(num_classes=len(classes), img_size=cfg['data']['img_size'], config=cfg['model'])
     elif cfg['model']['name'] == "SqueezeNet":
         model = SqueezeNet(num_classes=len(classes), feature_extraction=cfg['model']['feature_extraction'])
+    elif cfg['model']['name'] == "ShuffleNetMini":
+        model = ShuffleNetMini(
+            num_classes=len(classes),
+            stages_repeats=cfg['model']['stages_repeats'],
+            stages_out_channels=cfg['model']['stages_out_channels']
+        )
     else:
         raise ValueError(f"Model {cfg['model']['name']} not implemented")
         

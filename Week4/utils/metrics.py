@@ -21,6 +21,14 @@ def get_model_summary(model, input_size, device):
     flops = 0.0
     if profile:
         flops, _ = profile(model, inputs=(dummy_input, ), verbose=False)
+        
+        # Cleanup thop hooks to prevent issues in subsequent forward passes
+        for m in model.modules():
+            if hasattr(m, 'total_ops'):
+                del m.total_ops
+            if hasattr(m, 'total_params'):
+                del m.total_params
+            m._forward_hooks.clear()
     
     # 3. Latency (Average of 100 runs)
     # Warmup

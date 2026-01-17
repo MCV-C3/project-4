@@ -6,4 +6,4 @@
 #SBATCH -o logs/aug_%u_%j.out
 #SBATCH -e logs/aug_%u_%j.err
 
-python main_aug.py --config configs/data_augmentation/data_augmentation2.json
+python main_aug.py --config configs/data_augmentation/data_augmentation2_2.json

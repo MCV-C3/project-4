@@ -344,13 +344,15 @@ def main(args):
             pin_memory=True, shuffle=False, num_workers=NUM_WORKERS
         )
 
-        model = WraperModel(num_classes=8, truncation_level=LEVEL).to(device)
+        model = WraperModel(num_classes=8, truncation_level=LEVEL)
         
         if HEAD_CONFIG is not None:
             model.modify_classifier_head(
                 hidden_dims=HEAD_CONFIG.get("hidden_dims", None),
                 activation=HEAD_CONFIG.get("activation", "relu"),
             )
+
+        model.to(device)
         
         model.fine_tuning(unfreeze_blocks=UNFREEZE_DEPTH)
 

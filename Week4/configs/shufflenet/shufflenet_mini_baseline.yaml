@@ -11,9 +11,10 @@ data:
 
 model:
   name: "ShuffleNetMini"
-  stages_repeats: [2, 4, 2]
-  stages_out_channels: [24, 48, 96, 192, 512]
-  dropout: 0.0
+  params:
+    stages_repeats: [2, 4, 2]
+    stages_out_channels: [24, 48, 96, 192, 512]
+    dropout: 0.0
 
 training:
   epochs: 50

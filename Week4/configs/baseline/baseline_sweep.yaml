@@ -10,7 +10,7 @@ parameters:
   data.batch_size:
     values: [32, 64]
     
-  model.dropout:
+  model.params.dropout:
     values: [0.0, 0.5]
 
 command:

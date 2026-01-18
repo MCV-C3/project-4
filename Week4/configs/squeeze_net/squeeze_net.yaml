@@ -13,7 +13,8 @@ data:
 
 model:
   name: "SqueezeNet"
-  feature_extraction: true
+  params:
+    feature_extraction: true
 
 training:
   epochs: 20

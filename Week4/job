@@ -6,4 +6,4 @@
 #SBATCH -o logs/bow_%u_%j.out
 #SBATCH -e logs/bow_%u_%j.err
 
-python main.py --config configs/squeeze_net/squeeze_net.yaml
+python main.py --config configs/baseline/baseline.yaml

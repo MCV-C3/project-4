@@ -1,0 +1,36 @@
+project: week3-dropout
+entity: c3-team4
+program: main_hyp.py
+method: grid
+metric:
+  name: test_accuracy
+  goal: maximize
+parameters:
+  batch_size:
+    value: 32
+  lr:
+    value: 0.0001
+  epochs:
+    value: 50
+  num_workers:
+    value: 8
+  unfreeze_depth:
+    values: [0, 1, 2, 3]
+  level:
+    value: 3
+  head_config:
+    value: {"hidden_dims": [512], "activation": "relu"}
+  data_augmentation:
+    value: "gaussian_noise"
+  optimizer:
+    value: "adam"
+  momentum:
+    value: 0.0
+  decay:
+    value: 0.0
+  dropout:
+    values: [0, 0.1, 0.3, 0.5]
+  dropout_method:
+    values: ["classifier", "feature_extractor"]
+  run_name_format:
+    value: "Drop{dropout}_{dropout_method}_Unf{unfreeze_depth}"

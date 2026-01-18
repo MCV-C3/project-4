@@ -1,0 +1,42 @@
+{
+    "experiment_name": "week2_dense",
+    "wandb_project": "week3-baselines",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+
+    "evaluation_mode": "patch",
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_large_train",
+    "data_augmentation": true,
+    "img_size": 224,
+    "num_workers": 4,
+
+    "model_params": {
+        "hidden_layers": [
+            1024,
+            512,
+            256,
+            128
+        ],
+        "dropout": 0.1,
+        "activation": "leaky_relu"
+    },
+
+    "batch_size": 256,
+    "epochs": 80,
+
+    "lr": 1e-3,
+    "optimizer_name": "adamw",
+    "optimizer_params": {
+        "weight_decay": 1e-4
+    },
+
+    "scheduler_name": "cosineannealinglr",
+    "scheduler_params": {
+        "T_max": 80,
+        "eta_min": 1e-6
+    },
+
+    "patch_enable": true,
+    "aggregation": "mean",
+    "patch_size": 28
+}

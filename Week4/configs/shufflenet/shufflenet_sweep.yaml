@@ -1,0 +1,52 @@
+project: "Week4_ShuffleNet_Sweep"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy
+  goal: maximize
+
+parameters:
+  model.params:
+    values:
+      # Yocto variants
+      - {stages_repeats: [2, 2], stages_out_channels: [2, 2, 4, 4], experiment_name: "ShuffleNet_Yocto"}
+      - {stages_repeats: [1, 1], stages_out_channels: [2, 2, 4, 4], experiment_name: "ShuffleNet_Yocto_1x"}
+      
+      # Zepto variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [2, 2, 4, 4, 4], experiment_name: "ShuffleNet_Zepto"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [2, 2, 4, 4, 4], experiment_name: "ShuffleNet_Zepto_1x"}
+      
+      # Atto variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [4, 4, 6, 8, 8], experiment_name: "ShuffleNet_Atto"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [4, 4, 6, 8, 8], experiment_name: "ShuffleNet_Atto_1x"}
+      
+      # Femto variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [4, 8, 12, 16, 16], experiment_name: "ShuffleNet_Femto"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [4, 8, 12, 16, 16], experiment_name: "ShuffleNet_Femto_1x"}
+      
+      # Pico variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [8, 12, 16, 24, 24], experiment_name: "ShuffleNet_Pico"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [8, 12, 16, 24, 24], experiment_name: "ShuffleNet_Pico_1x"}
+      
+      # Nano variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [12, 16, 24, 32, 32], experiment_name: "ShuffleNet_Nano"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [12, 16, 24, 32, 32], experiment_name: "ShuffleNet_Nano_1x"}
+      
+      # Micro variants
+      - {stages_repeats: [2, 2, 2], stages_out_channels: [16, 32, 48, 64, 64], experiment_name: "ShuffleNet_Micro"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [16, 32, 48, 64, 64], experiment_name: "ShuffleNet_Micro_1x"}
+      
+      # Mini variants
+      - {stages_repeats: [2, 4, 2], stages_out_channels: [24, 48, 96, 192, 512], experiment_name: "ShuffleNet_Mini"}
+      - {stages_repeats: [1, 1, 1], stages_out_channels: [24, 48, 96, 192, 512], experiment_name: "ShuffleNet_Mini_1x"}
+      
+      # Standard 
+      - {stages_repeats: [4, 8, 4], stages_out_channels: [24, 116, 232, 464, 1024], experiment_name: "ShuffleNet_Standard"}
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/shufflenet/shufflenet_base.yaml"

@@ -1,0 +1,18 @@
+{
+    "experiment_name": "week2_SVM",
+    "wandb_project": "week3-baselines",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+
+    "model_path": "experiments/week2_small_images/week2_small_images.pth",
+    "train_config_path": "configs/baselines/week2_small_images.json",
+    "layers_to_eval": ["output"],
+    
+    "param_grid": [
+        {
+            "name": "linear_C7",
+            "kernel": "linear",
+            "C": 7
+        }
+    ]
+}

@@ -1,0 +1,26 @@
+project: "Week4_ShuffleNet_Sweep"
+entity: "c3-team4"
+experiment_name: "ShuffleNet_Base"
+
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: 256
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.5
+  num_classes: 8
+
+model:
+  name: "ShuffleNetMini"
+  params:
+    # Default params (will be overridden by sweep)
+    stages_repeats: [2, 2, 2]
+    stages_out_channels: [24, 116, 232, 464, 1024]
+
+training:
+  epochs: 500  # Standardizing to 500 for all models
+  learning_rate: 0.001
+  seed: 42
+  optimizer: "adam"
+  criterion: "crossentropy"

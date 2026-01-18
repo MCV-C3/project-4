@@ -92,3 +92,24 @@ To add a new model:
 - Define its parameters in the `model.params` section of a config file
 
 🎉 That’s it! No changes to the training pipeline are required.
+
+### Customizing Sweep Experiment Names
+
+When running hyperparameter sweeps, standard run names (e.g., `jumping-lion-2`) can be hard to identify.
+To enforce a specific name for your output folders:
+
+1. Add `experiment_name` to your sweep parameters in the YAML config.
+2. The `main.py` script automatically detects this key in `model.params`, sets the WandB run name, and creates the output directory accordingly.
+
+**Example Sweep Configuration:**
+```yaml
+parameters:
+  model.params:
+    values:
+      - {dropout: 0.1, experiment_name: "MyModel_LowDropout"}
+      - {dropout: 0.5, experiment_name: "MyModel_HighDropout"}
+```
+
+**Result:**
+- Output folders will be created at: `results/sweeps/<SWEEP_ID>/MyModel_LowDropout`
+- WandB run name will be set to: `MyModel_LowDropout`

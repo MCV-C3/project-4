@@ -1,0 +1,23 @@
+project: "Week4_ShuffleNet"
+experiment_name: "ShuffleNet_Yocto"
+
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: 256
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.5
+
+model:
+  name: "ShuffleNetMini"
+  stages_repeats: [1, 1]
+  stages_out_channels: [2, 2, 4, 4]
+  dropout: 0.0
+
+training:
+  epochs: 1000
+  learning_rate: 0.001
+  seed: 42
+  optimizer: "adam"
+  weight_decay: 0.0

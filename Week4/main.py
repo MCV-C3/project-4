@@ -137,8 +137,15 @@ def setup_experiment(config_path: str) -> Exp:
     # Change the config for the sweeps
     if wandb.run.sweep_id:
         cfg = configure_sweep(cfg)
+
+        # If the sweep injects 'experiment_name' into model.params use it for wandb run name
+        if 'experiment_name' in cfg['model'].get('params', {}):
+            cfg['experiment_name'] = cfg['model']['params'].pop(
+                'experiment_name')
+            wandb.run.name = cfg['experiment_name']
+
         output_dir = os.path.join(
-            "results", "sweeps", wandb.run.sweep_id, wandb.run.name)
+            "results", "sweeps", wandb.run.sweep_id, cfg['experiment_name'])
     else:
         # Standard run
         output_dir = os.path.join(

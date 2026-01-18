@@ -1,17 +1,21 @@
 import torch
 import torch.nn as nn
 
+
 def channel_shuffle(x: torch.Tensor, groups: int) -> torch.Tensor:
     batchsize, num_channels, height, width = x.size()
     channels_per_group = num_channels // groups
 
-    # reshape
+    # 1. Reshape into (Groups, Channels_Per_Group)
     x = x.view(batchsize, groups, channels_per_group, height, width)
+
+    # 2. Transpose (Swap) dimensions 1 and 2
     x = torch.transpose(x, 1, 2).contiguous()
 
-    # flatten
+    # 3. Flatten back
     x = x.view(batchsize, -1, height, width)
     return x
+
 
 class InvertedResidual(nn.Module):
     def __init__(self, inp: int, oup: int, stride: int):
@@ -26,9 +30,11 @@ class InvertedResidual(nn.Module):
 
         if self.stride > 1:
             self.branch1 = nn.Sequential(
-                self.depthwise_conv(inp, inp, kernel_size=3, stride=self.stride, padding=1),
+                self.depthwise_conv(inp, inp, kernel_size=3,
+                                    stride=self.stride, padding=1),
                 nn.BatchNorm2d(inp),
-                nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+                nn.Conv2d(inp, branch_features, kernel_size=1,
+                          stride=1, padding=0, bias=False),
                 nn.BatchNorm2d(branch_features),
                 nn.ReLU(inplace=True),
             )
@@ -40,9 +46,11 @@ class InvertedResidual(nn.Module):
                       branch_features, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
-            self.depthwise_conv(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1),
+            self.depthwise_conv(branch_features, branch_features,
+                                kernel_size=3, stride=self.stride, padding=1),
             nn.BatchNorm2d(branch_features),
-            nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(branch_features, branch_features,
+                      kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
         )
@@ -62,6 +70,7 @@ class InvertedResidual(nn.Module):
 
         return out
 
+
 class ShuffleNetMini(nn.Module):
     def __init__(
         self,
@@ -72,16 +81,15 @@ class ShuffleNetMini(nn.Module):
     ):
         super(ShuffleNetMini, self).__init__()
 
-        if len(stages_repeats) != 3:
-            raise ValueError("expected stages_repeats as list of 3 integers")
-        if len(stages_out_channels) != 5:
-             raise ValueError("stages_out_channels should len 5: [stem_out, stage2_out, stage3_out, stage4_out, conv5_out]")
+        if len(stages_repeats) != len(stages_out_channels) - 2:
+            raise ValueError(
+                "stages_out_channels must have 2 more elements than stages_repeats (stem + conv5)")
 
         self._stage_out_channels = stages_out_channels
 
         input_channels = 3
         output_channels = self._stage_out_channels[0]
-        
+
         # Stem
         self.conv1 = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 3, 2, 1, bias=False),
@@ -97,17 +105,19 @@ class ShuffleNetMini(nn.Module):
         self.stage3: nn.Sequential
         self.stage4: nn.Sequential
 
-        stage_names = ["stage{}".format(i) for i in [2, 3, 4]]
+        stage_names = ["stage{}".format(i)
+                       for i in range(2, 2 + len(stages_repeats))]
         for name, repeats, output_channels in zip(
-            stage_names, stages_repeats, self._stage_out_channels[1:4]
+            stage_names, stages_repeats, self._stage_out_channels[1:-1]
         ):
             seq = [inverted_residual(input_channels, output_channels, 2)]
             for i in range(repeats - 1):
-                seq.append(inverted_residual(output_channels, output_channels, 1))
+                seq.append(inverted_residual(
+                    output_channels, output_channels, 1))
             setattr(self, name, nn.Sequential(*seq))
             input_channels = output_channels
 
-        output_channels = self._stage_out_channels[4]
+        output_channels = self._stage_out_channels[-1]
         self.conv5 = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 1, 1, 0, bias=False),
             nn.BatchNorm2d(output_channels),
@@ -115,24 +125,15 @@ class ShuffleNetMini(nn.Module):
         )
 
         self.fc = nn.Linear(output_channels, num_classes)
-        
-        # GradCAM hook placeholder
-        self.backbone = nn.Sequential(
-            self.conv1,
-            self.maxpool,
-            self.stage2,
-            self.stage3,
-            self.stage4,
-            self.conv5
-        )
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.maxpool(x)
-        x = self.stage2(x)
-        x = self.stage3(x)
-        x = self.stage4(x)
+        num_stages = len(self._stage_out_channels) - 2
+        for i in range(2, 2 + num_stages):
+            stage = getattr(self, f"stage{i}")
+            x = stage(x)
         x = self.conv5(x)
         x = x.mean([2, 3])  # globalpool
         x = self.fc(x)
@@ -140,13 +141,14 @@ class ShuffleNetMini(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self._forward_impl(x)
-    
+
     def extract_feature_maps(self, x):
         # Initial layers
         x = self.conv1(x)
         x = self.maxpool(x)
-        x = self.stage2(x)
-        x = self.stage3(x)
-        x = self.stage4(x)
+        num_stages = len(self._stage_out_channels) - 2
+        for i in range(2, 2 + num_stages):
+            stage = getattr(self, f"stage{i}")
+            x = stage(x)
         x = self.conv5(x)
         return x

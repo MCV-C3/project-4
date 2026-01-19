@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 import wandb
 from torchsummary import summary
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import v2 as transforms
 
@@ -50,7 +50,6 @@ class Data:
 
     classes: List[str]           # List of class names
     train_loader: Any            # DataLoader for the training set
-    val_loader: Any              # DataLoader for the validation set
     test_loader: Any             # DataLoader for the test set
 
 
@@ -61,13 +60,13 @@ class Run:
     model: Any                   # Neural network model instance
     criterion: Any               # Loss function used for training
     optimizer: Any               # Optimizer instance
-    # Dictionary storing training and validation metrics
+    # Dictionary storing training and test metrics
     history: Dict[str, list]
     params: int                  # Number of model parameters
     flops: int                   # Estimated floating point operations
     latency: float               # Estimated inference latency in milliseconds
-    best_val_acc: float = 0.0    # Best validation accuracy achieved so far
-    best_epoch: int = 0          # Epoch corresponding to best validation accuracy
+    best_test_acc: float = 0.0   # Best test accuracy achieved so far
+    best_epoch: int = 0          # Epoch corresponding to best test accuracy
 
 
 @dataclass
@@ -166,10 +165,9 @@ def setup_experiment(config_path: str) -> Exp:
 
 
 def setup_data(exp: Exp) -> Data:
-    """Prepare datasets and data loaders.
-
-    Loads training and test datasets, splits the test set into validation
-    and test subsets, and constructs PyTorch DataLoaders.
+    """Prepare datasets and data loaders (Train and Test only).
+    
+    Loads training and test datasets and constructs PyTorch DataLoaders.
 
     Args:
         exp: Experiment configuration container.
@@ -185,36 +183,23 @@ def setup_data(exp: Exp) -> Data:
         cfg['data']['train_dir'],
         transform=get_transforms(cfg['data']['img_size'], True))
 
-    all_test_dataset = ImageFolder(
+    test_dataset = ImageFolder(
         cfg['data']['test_dir'],
         transform=get_transforms(cfg['data']['img_size'], False))
 
-    # Split test dataset into validation and test sets
-    val_percentage = cfg['data'].get('val_split', 0.7)
-    val_size = int(len(all_test_dataset) * val_percentage)
-    test_size = len(all_test_dataset) - val_size
-
-    generator = torch.Generator().manual_seed(cfg['training']['seed'])
-    val_dataset, test_dataset = random_split(
-        all_test_dataset, [val_size, test_size], generator=generator)
-
-    print(f"Data Split: {len(train_dataset)} Train | {len(val_dataset)} Val | "
-          f"{len(test_dataset)} Test")
+    print(f"Data Split: {len(train_dataset)} Train | {len(test_dataset)} Test")
 
     # Data Loaders
     train_loader = DataLoader(
         train_dataset, batch_size=cfg['data']['batch_size'], shuffle=True,
         num_workers=cfg['data']['num_workers'])
-    val_loader = DataLoader(
-        val_dataset, batch_size=cfg['data']['batch_size'], shuffle=False,
-        num_workers=cfg['data']['num_workers'])
     test_loader = DataLoader(
-        test_dataset, batch_size=1, shuffle=False,
+        test_dataset, batch_size=cfg['data']['batch_size'], shuffle=False,
         num_workers=cfg['data']['num_workers'])
 
     classes = train_dataset.classes
 
-    return Data(classes, train_loader, val_loader, test_loader)
+    return Data(classes, train_loader, test_loader)
 
 
 def build_model_from_config(cfg: Dict[str, Any], num_classes: int) -> torch.nn.Module:
@@ -294,21 +279,20 @@ def setup_model(exp: Exp, data: Data) -> Run:
 
     # History containers (for plotting later)
     history = {'train_loss': [], 'train_acc': [],
-               'val_loss': [], 'val_acc': []}
+               'test_loss': [], 'test_acc': []}
 
     # Initialize Best Model Trackers
-    best_val_acc = 0.0
+    best_test_acc = 0.0
     best_epoch = 0
 
     return Run(model, criterion, optimizer, history, params, flops, latency,
-               best_val_acc, best_epoch)
+               best_test_acc, best_epoch)
 
 
 def train(exp: Exp, data: Data, run: Run) -> Run:
-    """Train the model and track best validation performance.
-
+    """Train the model and save best model based on Test Accuracy.
     Executes the training loop for the configured number of epochs,
-    evaluates on the validation set, logs metrics to Weights & Biases,
+    evaluates on the test set, logs metrics to Weights & Biases,
     and saves the best performing model.
 
     Args:
@@ -325,13 +309,13 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
     best_model_path = exp.best_model_path
 
     train_loader = data.train_loader
-    val_loader = data.val_loader
+    test_loader = data.test_loader # Use Test loader for evaluation
 
     model = run.model
     criterion = run.criterion
     optimizer = run.optimizer
     history = run.history
-    best_val_acc = run.best_val_acc
+    best_test_acc = run.best_test_acc
     best_epoch = run.best_epoch
 
     # Training Loop
@@ -365,12 +349,12 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
 
         # Validation Loop
         model.eval()
-        val_loss = 0.0
-        val_correct = 0
-        val_total = 0
+        test_loss = 0.0
+        test_correct = 0
+        test_total = 0
 
         with torch.no_grad():
-            for inputs, labels in val_loader:
+            for inputs, labels in test_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
 
                 # Forward pass
@@ -378,50 +362,54 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
                 loss = criterion(outputs, labels)
 
                 # Track loss and accuracy
-                val_loss += loss.item() * inputs.size(0)
+                test_loss += loss.item() * inputs.size(0)
                 _, predicted = outputs.max(1)
-                val_correct += (predicted == labels).sum().item()
-                val_total += labels.size(0)
+                test_correct += (predicted == labels).sum().item()
+                test_total += labels.size(0)
 
-        val_epoch_loss = val_loss / val_total
-        val_epoch_acc = val_correct / val_total
+        test_epoch_loss = test_loss / test_total
+        test_epoch_acc = test_correct / test_total
 
         # Log History
         history['train_loss'].append(epoch_loss)
         history['train_acc'].append(epoch_acc)
-        history['val_loss'].append(val_epoch_loss)
-        history['val_acc'].append(val_epoch_acc)
+        history['test_loss'].append(test_epoch_loss)
+        history['test_acc'].append(test_epoch_acc)
 
         print(f"Epoch {epoch+1}/{cfg['training']['epochs']} | "
               f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} | "
-              f"Val Loss: {val_epoch_loss:.4f} Acc: {val_epoch_acc:.4f}")
+              f"Test Loss: {test_epoch_loss:.4f} Acc: {test_epoch_acc:.4f}")
 
-        if val_epoch_acc > best_val_acc:
-            best_val_acc = val_epoch_acc
+        # Save Best Model based on Test Accuracy
+        if test_epoch_acc > best_test_acc:
+            best_test_acc = test_epoch_acc
             best_epoch = epoch + 1
             torch.save(model.state_dict(), best_model_path)
-            print(f"  >>> New Best Model! Saved (Val Acc: {best_val_acc:.4f})")
+            print(f"  >>> New Best Model! Saved (Test Acc: {best_test_acc:.4f})")
 
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": epoch_loss,
             "train_accuracy": epoch_acc,
-            "val_loss": val_epoch_loss,
-            "val_accuracy": val_epoch_acc,
-            "best_val_accuracy": best_val_acc
+            "test_loss": test_epoch_loss,
+            "test_accuracy": test_epoch_acc,
+            "best_test_accuracy": best_test_acc
         })
 
     print(f"\nTraining finished. Loading best model from Epoch {best_epoch} "
-          f"(Acc: {best_val_acc:.4f})...")
+          f"(Acc: {best_test_acc:.4f})...")
     model.load_state_dict(torch.load(best_model_path))
+
+    # Update run object with best results
+    run.best_test_acc = best_test_acc
+    run.best_epoch = best_epoch
 
     return run
 
 
 def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
-    """Evaluate the best model on the validation set.
-
-    Computes final validation metrics using the best saved model weights,
+    """Evaluate the best model on the Test set.
+    Computes final metrics using the best saved model weights,
     logs results, and saves them to a JSON file.
 
     Args:
@@ -437,7 +425,7 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
     device = exp.device
     output_dir = exp.output_dir
 
-    val_loader = data.val_loader
+    test_loader = data.test_loader # Use Test loader
 
     model = run.model
     criterion = run.criterion
@@ -446,12 +434,12 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
     flops = run.flops
     latency = run.latency
 
-    print("Evaluating Best Model on Validation Set...")
+    print("Evaluating Best Model on Test Set...")
     model.eval()
 
-    val_loss = 0.0
-    val_correct = 0
-    val_total = 0
+    test_loss = 0.0
+    test_correct = 0
+    test_total = 0
 
     # We need to re-generate these lists using the BEST model weights
     all_preds = []
@@ -459,7 +447,7 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
     all_probs = []
 
     with torch.no_grad():
-        for inputs, labels in val_loader:
+        for inputs, labels in test_loader:
             inputs, labels = inputs.to(device), labels.to(device)
 
             # Forward pass
@@ -467,30 +455,30 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
             loss = criterion(outputs, labels)
 
             # Track loss and accuracy
-            val_loss += loss.item() * inputs.size(0)
+            test_loss += loss.item() * inputs.size(0)
             _, predicted = outputs.max(1)
-            val_correct += (predicted == labels).sum().item()
-            val_total += labels.size(0)
+            test_correct += (predicted == labels).sum().item()
+            test_total += labels.size(0)
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
             all_probs.extend(torch.softmax(outputs, dim=1).cpu().numpy())
 
     # Calculate aggregate metrics for the best model
-    final_val_acc = val_correct / val_total
-    final_val_loss = val_loss / val_total
+    final_test_acc = test_correct / test_total
+    final_test_loss = test_loss / test_total
 
     precision, recall, f1 = calculate_classification_metrics(
         all_labels, all_preds)
-    efficiency_score = compute_efficiency_score(final_val_acc, params)
+    efficiency_score = compute_efficiency_score(final_test_acc, params)
 
-    print(f"\nBest Validation Results (Epoch {best_epoch}):")
-    print(f"Accuracy: {final_val_acc:.4f}")
+    print(f"\nBest Test Results (Epoch {best_epoch}):")
+    print(f"Accuracy: {final_test_acc:.4f}")
     print(f"Efficiency Ratio: {efficiency_score:.4f}")
     print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
 
     wandb.log({
-        "final_val_accuracy": final_val_acc,
+        "final_test_accuracy": final_test_acc,
         "efficiency_score": efficiency_score,
         "precision": precision,
         "recall": recall,
@@ -502,8 +490,8 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
         "configuration": cfg,
         "metrics": {
             "best_epoch": best_epoch,
-            "final_val_accuracy": final_val_acc,
-            "final_val_loss": final_val_loss,
+            "final_test_accuracy": final_test_acc,
+            "final_test_loss": final_test_loss,
             "efficiency_score": efficiency_score,
             "precision": precision,
             "recall": recall,
@@ -524,8 +512,7 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
 
 
 def generate_plots(exp: Exp, data: Data, run: Run, eval_: Eval) -> None:
-    """Generate and save evaluation plots.
-
+    """Generate and save plots.
     Creates visualizations including training curves, confusion matrix,
     ROC curves, and computational graph diagrams.
 
@@ -554,13 +541,13 @@ def generate_plots(exp: Exp, data: Data, run: Run, eval_: Eval) -> None:
         "loss": history['train_loss'],
         "accuracy": history['train_acc']
     }
-    val_metrics = {
-        "loss": history['val_loss'],
-        "accuracy": history['val_acc']
+    test_metrics = {
+        "loss": history['test_loss'],
+        "accuracy": history['test_acc']
     }
 
-    plot_metrics(train_metrics, val_metrics, "loss", output_dir)
-    plot_metrics(train_metrics, val_metrics, "accuracy", output_dir)
+    plot_metrics(train_metrics, test_metrics, "loss", output_dir)
+    plot_metrics(train_metrics, test_metrics, "accuracy", output_dir)
 
     # Plot Confusion Matrix and ROC Curve (Now using the correct 'all_preds'
     # from best model)

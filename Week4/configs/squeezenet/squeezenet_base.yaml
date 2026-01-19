@@ -1,4 +1,4 @@
-project: "Week5_SqueezeNet"
+project: "Week4_SqueezeNet"
 entity: "c3-team4"
 experiment_name: "SqueezeNet_Base"
 

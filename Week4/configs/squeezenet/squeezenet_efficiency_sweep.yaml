@@ -1,4 +1,4 @@
-project: "Week5_SqueezeNet_Efficiency"
+project: "Week4_SqueezeNet_Sweep"
 entity: "c3-team4"
 program: main.py
 method: grid

@@ -1,0 +1,266 @@
+project: "Week5_SqueezeNet"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy
+  goal: maximize
+
+parameters:
+  model.params:
+    values:
+      - stem_channels: 8
+        fire_config:
+          - [2, 4, 4]    # 8 out
+          - [2, 4, 4]    # 8 out
+          - [4, 8, 8]    # 16 out
+          - [4, 8, 8]    # 16 out
+        use_bypass: true
+        dropout: 0.3
+        experiment_name: "SqueezeNet_Yocto"
+      
+      - stem_channels: 8
+        fire_config:
+          - [2, 4, 4]    # 8 out
+          - [2, 4, 4]    # 8 out
+          - [4, 8, 8]    # 16 out
+          - [4, 8, 8]    # 16 out
+        use_bypass: false
+        dropout: 0.3
+        experiment_name: "SqueezeNet_Yocto_NoBP"
+      
+      - stem_channels: 12
+        fire_config:
+          - [4, 6, 6]    # 12 out
+          - [4, 6, 6]    # 12 out
+          - [6, 12, 12]  # 24 out
+          - [6, 12, 12]  # 24 out
+          - [8, 16, 16]  # 32 out
+        use_bypass: true
+        dropout: 0.3
+        experiment_name: "SqueezeNet_Zepto"
+      
+      - stem_channels: 12
+        fire_config:
+          - [4, 6, 6]    # 12 out
+          - [4, 6, 6]    # 12 out
+          - [6, 12, 12]  # 24 out
+          - [6, 12, 12]  # 24 out
+          - [8, 16, 16]  # 32 out
+        use_bypass: false
+        dropout: 0.3
+        experiment_name: "SqueezeNet_Zepto_NoBP"
+
+      - stem_channels: 16
+        fire_config:
+          - [4, 8, 8]     # 16 out
+          - [4, 8, 8]     # 16 out
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [12, 24, 24]  # 48 out
+          - [12, 24, 24]  # 48 out
+        use_bypass: true
+        dropout: 0.4
+        experiment_name: "SqueezeNet_Atto"
+      
+      - stem_channels: 16
+        fire_config:
+          - [4, 8, 8]     # 16 out
+          - [4, 8, 8]     # 16 out
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [12, 24, 24]  # 48 out
+          - [12, 24, 24]  # 48 out
+        use_bypass: false
+        dropout: 0.4
+        experiment_name: "SqueezeNet_Atto_NoBP"
+      
+      - stem_channels: 24
+        fire_config:
+          - [6, 12, 12]   # 24 out
+          - [6, 12, 12]   # 24 out
+          - [12, 24, 24]  # 48 out
+          - [12, 24, 24]  # 48 out
+          - [16, 32, 32]  # 64 out
+          - [16, 32, 32]  # 64 out
+        use_bypass: true
+        dropout: 0.4
+        experiment_name: "SqueezeNet_Femto"
+      
+      - stem_channels: 24
+        fire_config:
+          - [6, 12, 12]   # 24 out
+          - [12, 24, 24]  # 48 out
+          - [16, 32, 32]  # 64 out
+          - [24, 48, 48]  # 96 out
+        use_bypass: true
+        dropout: 0.4
+        experiment_name: "SqueezeNet_Femto_Deep"
+      
+      - stem_channels: 32
+        fire_config:
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [16, 32, 32]  # 64 out
+          - [16, 32, 32]  # 64 out
+          - [24, 48, 48]  # 96 out
+          - [24, 48, 48]  # 96 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Pico"
+      
+      - stem_channels: 32
+        fire_config:
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [16, 32, 32]  # 64 out
+          - [16, 32, 32]  # 64 out
+          - [24, 48, 48]  # 96 out
+          - [24, 48, 48]  # 96 out
+        use_bypass: false
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Pico_NoBP"
+
+      - stem_channels: 48
+        fire_config:
+          - [12, 24, 24]  # 48 out
+          - [12, 24, 24]  # 48 out
+          - [24, 48, 48]  # 96 out
+          - [24, 48, 48]  # 96 out
+          - [32, 64, 64]  # 128 out
+          - [32, 64, 64]  # 128 out
+          - [48, 96, 96]  # 192 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Nano"
+      
+      - stem_channels: 48
+        fire_config:
+          - [12, 24, 24]  # 48 out
+          - [24, 48, 48]  # 96 out
+          - [32, 64, 64]  # 128 out
+          - [48, 96, 96]  # 192 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Nano_Shallow"
+      
+      - stem_channels: 64
+        fire_config:
+          - [16, 32, 32]    # 64 out
+          - [16, 32, 32]    # 64 out
+          - [32, 64, 64]    # 128 out
+          - [32, 64, 64]    # 128 out
+          - [48, 96, 96]    # 192 out
+          - [48, 96, 96]    # 192 out
+          - [64, 128, 128]  # 256 out
+          - [64, 128, 128]  # 256 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Micro"
+      
+      - stem_channels: 64
+        fire_config:
+          - [16, 32, 32]    # 64 out
+          - [16, 32, 32]    # 64 out
+          - [32, 64, 64]    # 128 out
+          - [32, 64, 64]    # 128 out
+          - [48, 96, 96]    # 192 out
+          - [48, 96, 96]    # 192 out
+          - [64, 128, 128]  # 256 out
+          - [64, 128, 128]  # 256 out
+        use_bypass: false
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Micro_NoBP"
+      
+      - stem_channels: 96
+        fire_config:
+          - [16, 64, 64]    # 128 out
+          - [16, 64, 64]    # 128 out
+          - [32, 128, 128]  # 256 out
+          - [32, 128, 128]  # 256 out
+          - [48, 192, 192]  # 384 out
+          - [48, 192, 192]  # 384 out
+          - [64, 256, 256]  # 512 out
+          - [64, 256, 256]  # 512 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_Mini"
+      
+      # More squeeze ratio
+      - stem_channels: 32
+        fire_config:
+          - [4, 16, 16]    # 32 out, squeeze ratio 1:8
+          - [4, 16, 16]    # 32 out
+          - [8, 32, 32]    # 64 out
+          - [8, 32, 32]    # 64 out
+          - [12, 48, 48]   # 96 out
+          - [12, 48, 48]   # 96 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_HighSqueeze"
+      
+      # Less squeeze ratio
+      - stem_channels: 32
+        fire_config:
+          - [16, 16, 16]   # 32 out, squeeze ratio 1:2
+          - [16, 16, 16]   # 32 out
+          - [32, 32, 32]   # 64 out
+          - [32, 32, 32]   # 64 out
+          - [48, 48, 48]   # 96 out
+          - [48, 48, 48]   # 96 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_LowSqueeze"
+      
+      # Asymmetric expand (more 3x3 than 1x1)
+      - stem_channels: 32
+        fire_config:
+          - [8, 8, 24]     # 32 out
+          - [8, 8, 24]     # 32 out
+          - [16, 16, 48]   # 64 out
+          - [16, 16, 48]   # 64 out
+          - [24, 24, 72]   # 96 out
+          - [24, 24, 72]   # 96 out
+        use_bypass: true
+        dropout: 0.5
+        experiment_name: "SqueezeNet_More3x3"
+      
+      # Higher dropout (regularization study)
+      - stem_channels: 32
+        fire_config:
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [16, 32, 32]  # 64 out
+          - [16, 32, 32]  # 64 out
+          - [24, 48, 48]  # 96 out
+          - [24, 48, 48]  # 96 out
+        use_bypass: true
+        dropout: 0.7
+        experiment_name: "SqueezeNet_HighDropout"
+      
+      # Lower dropout
+      - stem_channels: 32
+        fire_config:
+          - [8, 16, 16]   # 32 out
+          - [8, 16, 16]   # 32 out
+          - [16, 32, 32]  # 64 out
+          - [16, 32, 32]  # 64 out
+          - [24, 48, 48]  # 96 out
+          - [24, 48, 48]  # 96 out
+        use_bypass: true
+        dropout: 0.2
+        experiment_name: "SqueezeNet_LowDropout"
+
+  data.img_size:
+    values: [128]
+
+  # Learning rate variations
+  training.learning_rate:
+    values: [0.001]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/squeezenet/squeezenet_base.yaml"

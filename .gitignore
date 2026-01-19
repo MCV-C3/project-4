@@ -6,6 +6,7 @@ wandb
 logs
 *.txt
 .vscode
+.DS_Store
 
 # Week 2
 Week2/experiments/

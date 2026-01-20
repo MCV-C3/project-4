@@ -1,0 +1,28 @@
+project: "Week4_ShuffleNet_Sweep"
+entity: "c3-team4"
+experiment_name: "ShuffleNet_Nano_Distill"
+
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: 256
+  batch_size: 32
+  num_workers: 8
+  num_classes: 8
+
+student_model:
+  name: "ShuffleNetMini"
+  params:
+    # Nano Configuration
+    stages_repeats: [2, 2, 2]
+    stages_out_channels: [12, 16, 24, 32, 32]
+
+distillation:
+  teacher_path: "/ghome/group04/C3/Benet/project-4/Week3/experiments/hyp_opt/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR.pth"
+  temperature: 4.0
+  alpha: 0.5  # Weight for distillation loss (1-alpha for CE loss)
+
+training:
+  epochs: 500
+  learning_rate: 0.001
+  seed: 42

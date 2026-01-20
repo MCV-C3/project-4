@@ -9,9 +9,14 @@ import yaml
 import tqdm
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import wandb
-from torchsummary import summary
+try:
+    from torchsummary import summary
+except ImportError:
+    print("Warning: torchsummary not found. Model summary will be skipped.")
+    summary = lambda *args, **kwargs: print("Summary skipped.")
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import v2 as transforms
@@ -67,6 +72,8 @@ class Run:
     latency: float               # Estimated inference latency in milliseconds
     best_test_acc: float = 0.0   # Best test accuracy achieved so far
     best_epoch: int = 0          # Epoch corresponding to best test accuracy
+    # Teacher model instance (optional, for distillation)
+    teacher: Any = None
 
 
 @dataclass
@@ -112,6 +119,49 @@ def get_transforms(img_size: int, is_train: bool = True):
         ])
 
 
+def distillation_loss_fn(student_logits, teacher_logits, labels, T, alpha, criterion):
+    """Computes the distillation loss (KL Divergence + CrossEntropy)."""
+    # KL Divergence Loss
+    soft_targets = F.softmax(teacher_logits / T, dim=1)
+    student_log_softmax = F.log_softmax(student_logits / T, dim=1)
+    kl_loss = F.kl_div(student_log_softmax, soft_targets,
+                       reduction='batchmean') * (T ** 2)
+
+    # Standard CrossEntropy
+    ce_loss = criterion(student_logits, labels)
+
+    total_loss = alpha * kl_loss + (1 - alpha) * ce_loss
+    return total_loss, kl_loss, ce_loss
+
+
+def build_teacher_model(cfg: Dict[str, Any], num_classes: int, device: Any) -> torch.nn.Module:
+    """Builds and loads the teacher model for distillation."""
+    print("Loading Teacher Model...")
+    # Parameters for the teacher as identified in Week 3
+    teacher = models.TeacherWrapperModel(
+        num_classes=num_classes, truncation_level=3)
+
+    # Apply modifications as per Week 3 results.json
+    teacher.modify_classifier_head(
+        hidden_dims=[512],
+        activation='relu',
+        dropout=0.5,
+        normalization='batch'
+    )
+
+    teacher_path = cfg['distillation']['teacher_path']
+    print(f"Loading teacher weights from {teacher_path}")
+
+    state_dict = torch.load(teacher_path, map_location=device)
+    teacher.load_state_dict(state_dict)
+
+    teacher.to(device)
+    teacher.eval()
+    teacher.set_parameter_requires_grad(False)
+
+    return teacher
+
+
 def setup_experiment(config_path: str) -> Exp:
     """Initialize experiment configuration, logging, and environment.
 
@@ -138,10 +188,23 @@ def setup_experiment(config_path: str) -> Exp:
         cfg = configure_sweep(cfg)
 
         # If the sweep injects 'experiment_name' into model.params use it for wandb run name
-        if 'experiment_name' in cfg['model'].get('params', {}):
-            cfg['experiment_name'] = cfg['model']['params'].pop(
+        model_key = 'model' if 'model' in cfg else 'student_model'
+        if model_key in cfg and 'experiment_name' in cfg[model_key].get('params', {}):
+            cfg['experiment_name'] = cfg[model_key]['params'].pop(
                 'experiment_name')
             wandb.run.name = cfg['experiment_name']
+
+        # Customize run name for distillation sweeps
+        if 'distillation' in cfg:
+            alpha = cfg['distillation'].get('alpha')
+            temp = cfg['distillation'].get('temperature')
+            if alpha is not None and temp is not None:
+                new_name = f"{cfg['experiment_name']}_alpha{alpha}_T{temp}"
+                wandb.run.name = new_name
+                cfg['experiment_name'] = new_name
+                # Update wandb.config to reflect the new name if needed
+                wandb.config.update(
+                    {'experiment_name': new_name}, allow_val_change=True)
 
         output_dir = os.path.join(
             "results", "sweeps", wandb.run.sweep_id, cfg['experiment_name'])
@@ -166,7 +229,7 @@ def setup_experiment(config_path: str) -> Exp:
 
 def setup_data(exp: Exp) -> Data:
     """Prepare datasets and data loaders (Train and Test only).
-    
+
     Loads training and test datasets and constructs PyTorch DataLoaders.
 
     Args:
@@ -209,7 +272,16 @@ def build_model_from_config(cfg: Dict[str, Any], num_classes: int) -> torch.nn.M
       cfg["model"]["name"]: class name exported in models/__init__.py
       cfg["model"]["params"]: kwargs passed to the model constructor
     """
-    model_name = cfg["model"]["name"]
+    if "model" in cfg:
+        model_name = cfg["model"]["name"]
+        params = dict(cfg["model"].get("params", {}))
+    elif "student_model" in cfg:
+        # Alias for distillation configs
+        model_name = cfg["student_model"]["name"]
+        params = dict(cfg["student_model"].get("params", {}))
+    else:
+        raise ValueError(
+            "Config must contain 'model' or 'student_model' section.")
 
     # Look up class by name from the models package
     try:
@@ -221,7 +293,6 @@ def build_model_from_config(cfg: Dict[str, Any], num_classes: int) -> torch.nn.M
         ) from e
 
     # Get constructor kwargs from config
-    params = dict(cfg["model"].get("params", {}))
     params["num_classes"] = num_classes  # always inject
 
     # Filter params to only those accepted by the constructor
@@ -285,8 +356,24 @@ def setup_model(exp: Exp, data: Data) -> Run:
     best_test_acc = 0.0
     best_epoch = 0
 
-    return Run(model, criterion, optimizer, history, params, flops, latency,
-               best_test_acc, best_epoch)
+    # Distillation Setup
+    teacher = None
+    if 'distillation' in cfg:
+        teacher = build_teacher_model(
+            cfg, num_classes=len(classes), device=device)
+
+    return Run(
+        model=model,
+        teacher=teacher,
+        criterion=criterion,
+        optimizer=optimizer,
+        history=history,
+        params=params,
+        flops=flops,
+        latency=latency,
+        best_test_acc=best_test_acc,
+        best_epoch=best_epoch
+    )
 
 
 def train(exp: Exp, data: Data, run: Run) -> Run:
@@ -309,29 +396,49 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
     best_model_path = exp.best_model_path
 
     train_loader = data.train_loader
-    test_loader = data.test_loader # Use Test loader for evaluation
+    test_loader = data.test_loader  # Use Test loader for evaluation
 
     model = run.model
+    teacher = run.teacher
     criterion = run.criterion
     optimizer = run.optimizer
     history = run.history
     best_test_acc = run.best_test_acc
     best_epoch = run.best_epoch
 
+    # Distillation Params
+    T = cfg.get('distillation', {}).get('temperature', 1.0)
+    alpha = cfg.get('distillation', {}).get('alpha', 0.0)
+
     # Training Loop
     print("Starting training...")
     for epoch in tqdm.tqdm(range(cfg['training']['epochs']), desc="TRAINING THE MODEL"):
         model.train()
         train_loss = 0.0
+        train_kl = 0.0
+        train_ce = 0.0
         correct = 0
         total = 0
 
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # Forward pass
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            if teacher:
+                # Distillation Forward
+                with torch.no_grad():
+                    teacher_outputs = teacher(inputs)
+                student_outputs = model(inputs)
+                loss, kl, ce = distillation_loss_fn(
+                    student_outputs, teacher_outputs, labels, T, alpha, criterion)
+
+                # Track components
+                train_kl += kl.item() * inputs.size(0)
+                train_ce += ce.item() * inputs.size(0)
+            else:
+                # Standard Forward
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                student_outputs = outputs  # Alias for acc calc
 
             # Backward pass and optimization
             optimizer.zero_grad()
@@ -340,7 +447,7 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
 
             # Track loss and accuracy
             train_loss += loss.item() * inputs.size(0)
-            _, predicted = outputs.max(1)
+            _, predicted = student_outputs.max(1)
             correct += (predicted == labels).sum().item()
             total += labels.size(0)
 
@@ -376,16 +483,24 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
         history['test_loss'].append(test_epoch_loss)
         history['test_acc'].append(test_epoch_acc)
 
-        print(f"Epoch {epoch+1}/{cfg['training']['epochs']} | "
-              f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} | "
-              f"Test Loss: {test_epoch_loss:.4f} Acc: {test_epoch_acc:.4f}")
+        log_msg = (f"Epoch {epoch+1}/{cfg['training']['epochs']} | "
+                   f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} | "
+                   f"Test Loss: {test_epoch_loss:.4f} Acc: {test_epoch_acc:.4f}")
+
+        if teacher:
+            epoch_kl = train_kl / total
+            epoch_ce = train_ce / total
+            log_msg += f" (KL: {epoch_kl:.4f}, CE: {epoch_ce:.4f})"
+
+        print(log_msg)
 
         # Save Best Model based on Test Accuracy
         if test_epoch_acc > best_test_acc:
             best_test_acc = test_epoch_acc
             best_epoch = epoch + 1
             torch.save(model.state_dict(), best_model_path)
-            print(f"  >>> New Best Model! Saved (Test Acc: {best_test_acc:.4f})")
+            print(
+                f"  >>> New Best Model! Saved (Test Acc: {best_test_acc:.4f})")
 
         wandb.log({
             "epoch": epoch + 1,
@@ -425,7 +540,7 @@ def evaluate(exp: Exp, data: Data, run: Run) -> Eval:
     device = exp.device
     output_dir = exp.output_dir
 
-    test_loader = data.test_loader # Use Test loader
+    test_loader = data.test_loader  # Use Test loader
 
     model = run.model
     criterion = run.criterion
@@ -597,6 +712,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config", type=str, default="configs/baseline.yaml",
         help="Path to config file")
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        print(f"Warning: Ignoring unknown arguments: {unknown}")
 
     main(args.config)

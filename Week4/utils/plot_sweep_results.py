@@ -109,8 +109,10 @@ def plot_results(results, output_file):
     sorted_by_dist = sorted(results, key=lambda x: x['distance'])
 
     # Save to CSV
-    csv_file = os.path.join(os.path.dirname(
-        output_file), 'model_comparison.csv')
+    # Derive CSV filename from output filename to include the suffix
+    csv_filename = os.path.basename(output_file).replace(
+        'accuracy_vs_weights', 'model_comparison').replace('.png', '.csv')
+    csv_file = os.path.join(os.path.dirname(output_file), csv_filename)
     try:
         with open(csv_file, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -135,17 +137,36 @@ def plot_results(results, output_file):
 def main():
     parser = argparse.ArgumentParser(
         description='Plot Accuracy vs Weights for a Sweep')
-    parser.add_argument('sweep_dir', type=str,
-                        help='Path to the sweep directory (e.g., results/sweeps/hbuck2cj)')
+    parser.add_argument('sweep_dirs', type=str, nargs='+',
+                        help='Paths to the sweep directories (e.g., results/sweeps/hbuck2cj)')
 
     args = parser.parse_args()
 
-    print(f"Loading results from {args.sweep_dir}...")
-    results = load_results(args.sweep_dir)
-    print(f"Found {len(results)} experiments.")
+    all_results = []
+    sweep_ids = []
 
-    output_file = os.path.join(args.sweep_dir, 'accuracy_vs_weights.png')
-    plot_results(results, output_file)
+    for sweep_dir in args.sweep_dirs:
+        print(f"Loading results from {sweep_dir}...")
+        results = load_results(sweep_dir)
+        print(f"Found {len(results)} experiments in {sweep_dir}.")
+        all_results.extend(results)
+
+        # Extract sweep ID from path for filename
+        sweep_id = os.path.basename(os.path.normpath(sweep_dir))
+        sweep_ids.append(sweep_id)
+
+    if not all_results:
+        print("No results found in any directory.")
+        return
+
+    # Create suffix from sweep IDs
+    suffix = "_" + "_".join(sweep_ids)
+
+    # Save output in the first directory provided
+    first_dir = args.sweep_dirs[0]
+    output_file = os.path.join(first_dir, f'accuracy_vs_weights{suffix}.png')
+
+    plot_results(all_results, output_file)
 
 
 if __name__ == "__main__":

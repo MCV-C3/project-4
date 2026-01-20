@@ -8,7 +8,7 @@ data:
   img_size: 256
   batch_size: 32
   num_workers: 4
-  val_split: 0.5
+  # val_split: 1
   num_classes: 8
 
 model:

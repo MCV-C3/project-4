@@ -1,0 +1,63 @@
+project: "Week4_BaseNet_Sweep"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy
+  goal: maximize
+
+parameters:
+  model.name: 
+    value: "ExperimentalCNN"
+  
+  model.params:
+    values:
+      # ==============================================
+      # ARCHITECTURE A: VGG-LITE (Updated to 5 Layers)
+      # ==============================================
+      - experiment_name: "VGG_Lite_Base"
+        # OLD: [64, 64, 128, 128]
+        # NEW: Matches Phase 2 exactly
+        channels: [32, 64, 128, 128, 256] 
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      # ==============================================
+      # ARCHITECTURE B: PYRAMID (Updated to 5 Layers)
+      # ==============================================
+      - experiment_name: "Pyramid_Base"
+        # OLD: [32, 64, 128, 256]
+        # NEW: Matches Phase 2 exactly
+        channels: [32, 64, 128, 256, 512]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      # ==============================================
+      # ARCHITECTURE C: DEEP & NARROW (Already matched)
+      # ==============================================
+      - experiment_name: "DeepNarrow_Base"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/baseline/baseline.yaml"

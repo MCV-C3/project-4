@@ -1,8 +1,7 @@
-experiment_name: "BaseNet_GAP_comparison"
-project: "Week4_BaseNet_Sweep"
+experiment_name: "ExperimentalNet_prueba"
+project: "Week4_Experimental_Sweep"
 entity: "c3-team4"
 
-# Modular parameters
 data:
   train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
   test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
@@ -12,14 +11,16 @@ data:
   num_classes: 8
 
 model:
-  name: "BasicCNN"
+  name: "ExperimentalCNN"
   params:
-    channels: [64, 128, 256]
-    kernel_size: 3
-    use_bn: false
-    dropout: 0.0
-    fc_units: []
+    channels: [32, 32, 32, 32, 32, 32]
     img_size: *IMG_SIZE
+    dropout: 0.0
+    use_gap: false
+    use_bottleneck: false
+    use_attention: false
+    use_residual: false
+    use_bn: true
 
 training:
   epochs: 50

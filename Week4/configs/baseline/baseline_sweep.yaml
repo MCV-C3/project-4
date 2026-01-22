@@ -1,21 +1,47 @@
-project: week4-init
-entity: c3-team4
+project: "Week4_BaseNet_Sweep"
+entity: "c3-team4"
 program: main.py
-method: bayes  # or grid, random
+method: grid
 metric:
   name: final_val_accuracy
   goal: maximize
+
 parameters:
-  # Using dot notation to match your cfg dictionary structure
-  data.batch_size:
-    values: [32, 64]
-    
-  model.params.dropout:
-    values: [0.0, 0.5]
+  model.name: 
+    value: "ExperimentalCNN"
+  
+  model.params:
+    values:
+      - experiment_name: "VGG_Lite"
+        channels: [64, 64, 128, 128]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      - experiment_name: "Pyramid"
+        channels: [32, 64, 128, 256]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      - experiment_name: "DeepNarrow"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
 
 command:
   - ${env}
   - ${interpreter}
   - ${program}
   - "--config"
-  - "configs/baseline/baseline.yaml" # Loads the base config first
+  - "configs/baseline/baseline.yaml"

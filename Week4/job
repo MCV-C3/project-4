@@ -6,4 +6,4 @@
 #SBATCH -o logs/bow_%u_%j.out
 #SBATCH -e logs/bow_%u_%j.err
 
-python main.py --config configs/baseline/baseline.yaml
+python main.py --config configs/mobilenetv2/mobilenetv2_smol2.yaml

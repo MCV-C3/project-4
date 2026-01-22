@@ -1,75 +1,171 @@
-from typing import List
+from __future__ import annotations
+
+from typing import List, Literal, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
 
 
 class DepthwiseSeparableConv(nn.Module):
-    """Depthwise conv (groups=in_ch) + pointwise conv (1x1)."""
-
+    """MobileNetV1 block: depthwise 3x3 + pointwise 1x1."""
     def __init__(self, in_ch: int, out_ch: int, stride: int = 1) -> None:
         super().__init__()
-        self.depthwise = nn.Sequential(
-            nn.Conv2d(in_ch, in_ch, kernel_size=3, stride=stride, padding=1,
-                      groups=in_ch, bias=False),
+        self.block = nn.Sequential(
+            nn.Conv2d(
+                in_ch, in_ch, 3, stride=stride, padding=1, groups=in_ch,
+                bias=False),
             nn.BatchNorm2d(in_ch),
             nn.ReLU(inplace=True),
-        )
-        self.pointwise = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, kernel_size=1,
-                      stride=1, padding=0, bias=False),
+
+            nn.Conv2d(in_ch, out_ch, 1, bias=False),
             nn.BatchNorm2d(out_ch),
             nn.ReLU(inplace=True),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.depthwise(x)
-        x = self.pointwise(x)
-        return x
+        return self.block(x)
+
+
+class InvertedResidual(nn.Module):
+    """MobileNetV2 block: expand 1x1 -> depthwise 3x3 -> project 1x1 (linear)."""
+    def __init__(
+            self, 
+            in_ch: int, 
+            out_ch: int, 
+            stride: int, 
+            expand_ratio: int
+        ) -> None:
+        super().__init__()
+        if stride not in (1, 2):
+            raise ValueError("stride must be 1 or 2")
+        if expand_ratio < 1:
+            raise ValueError("expand_ratio must be >= 1")
+
+        hidden_ch = int(round(in_ch * expand_ratio))
+        self.use_res = (stride == 1 and in_ch == out_ch)
+
+        layers: List[nn.Module] = []
+
+        # expand (optional)
+        if expand_ratio != 1:
+            layers += [
+                nn.Conv2d(in_ch, hidden_ch, 1, bias=False),
+                nn.BatchNorm2d(hidden_ch),
+                nn.ReLU6(inplace=True),
+            ]
+        else:
+            hidden_ch = in_ch
+
+        # depthwise
+        layers += [
+            nn.Conv2d(
+                hidden_ch, hidden_ch, 3, stride=stride, padding=1,
+                groups=hidden_ch, bias=False),
+            nn.BatchNorm2d(hidden_ch),
+            nn.ReLU6(inplace=True),
+        ]
+
+        # project (linear bottleneck)
+        layers += [
+            nn.Conv2d(hidden_ch, out_ch, 1, bias=False),
+            nn.BatchNorm2d(out_ch),
+        ]
+
+        self.block = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.block(x)
+        return out + x if self.use_res else out
 
 
 class MobileNet(nn.Module):
-    """MobileNetV1 for ImageNet-style inputs (default 224x224)."""
+    """
+    MobileNet with selectable version.
 
+    V1 spec format:
+      v1_spec = [(stem_out, stem_stride), (out_ch, stride), (out_ch, stride), ...]
+
+    V2 spec format (flat, no repeats):
+      v2_spec = [(stem_out, stem_stride), (out_ch, stride, expand), 
+                 (out_ch, stride, expand), ...]
+
+    """
     def __init__(
-            self,
-            num_classes: int,
-            out_channels: List[List[int]],
-            alpha: float = 1.0
+        self,
+        num_classes: int,
+        version: Literal["v1", "v2"] = "v1",
+        alpha: float = 1.0,
+        v1_spec: Optional[Sequence[Tuple[int, int]]] = None,
+        v2_spec: Optional[Sequence[Tuple[int, int, int]]] = None,
     ) -> None:
         super().__init__()
-        assert num_classes > 0
-        assert alpha > 0
+
+        if num_classes <= 0:
+            raise ValueError("num_classes must be > 0")
+        if alpha <= 0:
+            raise ValueError("alpha must be > 0")
 
         def c(ch: int) -> int:
-            # width multiplier (alpha) applied to channel counts
             return max(1, int(ch * alpha))
 
-        model_layers = []
+        layers: List[nn.Module] = []
 
-        # conv_bn_relu: 3x3
-        output_channels, stride = out_channels[0]
-        model_layers.append(nn.Sequential(
-            nn.Conv2d(3, c(output_channels), kernel_size=3,
-                      stride=stride, padding=1, bias=False),
-            nn.BatchNorm2d(c(output_channels)),
-            nn.ReLU(inplace=True)))
+        if version == "v1":
+            if not v1_spec:
+                raise ValueError("v1_spec must be provided when version='v1'")
 
-        # Depthwise-separable blocks
-        input_channels = output_channels
-        dw_channels = out_channels[1:]
-        for output_channels, stride in dw_channels:
-            model_layers.append(
-                DepthwiseSeparableConv(
-                    c(input_channels),  c(output_channels), stride=stride))
-            input_channels = output_channels
+            stem_out, stem_stride = v1_spec[0]
+            cur_ch = c(stem_out)
 
-        self.features = nn.Sequential(
-            *model_layers
-        )
+            layers.append(nn.Sequential(
+                nn.Conv2d(
+                    3, cur_ch, 3, stride=stem_stride, padding=1, bias=False),
+                nn.BatchNorm2d(cur_ch),
+                nn.ReLU(inplace=True),
+            ))
 
+            for out_ch, stride in v1_spec[1:]:
+                next_ch = c(out_ch)
+                layers.append(DepthwiseSeparableConv(
+                    cur_ch, next_ch, stride=stride))
+                cur_ch = next_ch
+
+        elif version == "v2":
+            if not v2_spec:
+                raise ValueError("v2_spec must be provided when version='v2'")
+
+            stem_out, stem_stride = v2_spec[0]
+            cur_ch = c(stem_out)
+
+            layers.append(nn.Sequential(
+                nn.Conv2d(3, cur_ch, 3, stride=2, padding=1, bias=False),
+                nn.BatchNorm2d(cur_ch),
+                nn.ReLU6(inplace=True),
+            ))
+
+            # Flat list of inverted residual blocks
+            for spec_item in v2_spec[1:]:
+                if len(spec_item) == 2:
+                    out_ch, stride = spec_item
+                    expand = 1
+                elif len(spec_item) == 3:
+                    out_ch, stride, expand = spec_item
+                else:
+                    raise ValueError(
+                        "v2_spec must be contain elements of length 2 of 3, "
+                        f"instead, element of length {len(spec_item)} was provided")
+                
+                next_ch = c(out_ch)
+                layers.append(InvertedResidual(
+                    cur_ch, next_ch, stride=stride, expand_ratio=expand))
+                cur_ch = next_ch
+
+        else:
+            raise ValueError("version must be 'v1' or 'v2'")
+
+        self.features = nn.Sequential(*layers)
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Linear(c(output_channels), num_classes)
+        self.classifier = nn.Linear(cur_ch, num_classes)
 
         self._init_weights()
 
@@ -89,5 +185,4 @@ class MobileNet(nn.Module):
         x = self.features(x)
         x = self.pool(x)
         x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
+        return self.classifier(x)

@@ -1,0 +1,37 @@
+project: "Week4_MobileNetV2"
+entity: "c3-team4"
+experiment_name: "MobileNetV2_Smol2"
+
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: 256
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.5
+  num_classes: 8
+
+model:
+  name: "MobileNet"
+  params:
+    version: "v2"
+    alpha: 1
+    v2_spec:
+      - [3, 2]  # First regular convolution
+      - [3, 1, 1]  # Block of depthwise convolutions
+      - [3, 2, 3]
+      - [3, 1, 3]
+      - [3, 2, 3]
+      - [3, 1, 3]
+      - [3, 2, 3]
+      - [3, 1, 3]
+      - [3, 2, 3]
+      - [3, 1, 3]
+
+
+training:
+  epochs: 500  # Standardizing to 500 for all models
+  learning_rate: 0.001
+  seed: 42
+  optimizer: "adam"
+  criterion: "crossentropy"

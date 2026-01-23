@@ -1,10 +1,23 @@
 import os
 import json
-import matplotlib.pyplot as plt
 import argparse
 import glob
-import numpy as np
 import csv
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+# set size parameters of the plots to be big enought to be slide-readable
+plt.rcParams.update({
+    "font.size": 16,
+    "axes.titlesize": 20,
+    "axes.labelsize": 18,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+})
+
 
 
 def load_results(sweep_dir):
@@ -49,47 +62,24 @@ def plot_results(results, output_file):
         print("No data to plot.")
         return
 
-    params = [r['params'] for r in results]
-    accuracies = [r['accuracy'] for r in results]
-    names = [r['name'] for r in results]
+    params = np.array([r["params"] for r in results], dtype=float)
+    accuracies = np.array([r["accuracy"] for r in results], dtype=float)
+    names = np.array([r["name"] for r in results], dtype=object)
 
-    plt.figure(figsize=(10, 8))
-    # X = Weights, Y = Accuracy
-    plt.scatter(params, accuracies, color='blue', alpha=0.7)
-
-    # Annotate points
-    for i, name in enumerate(names):
-        plt.annotate(name, (params[i], accuracies[i]),
-                     xytext=(5, 5), textcoords='offset points', fontsize=8)
-
-    plt.xscale('log')  # Log scale for parameters makes sense on X
-    plt.xlabel('Number of Weights (Parameters)')
-    plt.ylabel('Test Accuracy')
-    plt.title('Model Accuracy vs. Number of Weights')
-    plt.grid(True, which="both", ls="-", alpha=0.2)
-
-    # Calculate Distances to Ideal (Acc=1, Params=0)
-    # Normalize params to [0, 1] relative to the max observed to make the distance meaningful
-    max_params = max(params) if params else 1
-
-    # Distance = sqrt((1 - acc)^2 + (params/max_params)^2)
-    distances = []
+    # --- Compute extra fields (kept from your code) ---
+    max_params = float(params.max()) if len(params) else 1.0
     for r in results:
-        norm_param = r['params'] / max_params
-        dist = np.sqrt((1 - r['accuracy'])**2 + norm_param**2)
-        r['distance'] = dist
-        r['norm_param'] = norm_param
-        distances.append(dist)
+        norm_param = r["params"] / max_params
+        r["norm_param"] = norm_param
+        r["distance"] = float(np.sqrt((1 - r["accuracy"]) ** 2 + norm_param ** 2))
 
-    # Highlight the Pareto frontier (simple version: max accuracy for params <= p)
-    # Sort by params
+    # --- Pareto frontier (same logic as yours) ---
     sorted_indices = np.argsort(params)
-    sorted_params = np.array(params)[sorted_indices]
-    sorted_accs = np.array(accuracies)[sorted_indices]
+    sorted_params = params[sorted_indices]
+    sorted_accs = accuracies[sorted_indices]
 
-    current_max_acc = -1
-    pareto_params = []
-    pareto_accs = []
+    current_max_acc = -np.inf
+    pareto_params, pareto_accs = [], []
 
     for p, a in zip(sorted_params, sorted_accs):
         if a > current_max_acc:
@@ -97,13 +87,58 @@ def plot_results(results, output_file):
             pareto_params.append(p)
             pareto_accs.append(a)
 
-    plt.plot(pareto_params, pareto_accs, 'r--',
-             label='Pareto Frontier', alpha=0.5)
-    plt.legend()
+    pareto_params = np.array(pareto_params, dtype=float)
+    pareto_accs = np.array(pareto_accs, dtype=float)
 
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
-    print(f"Plot saved to {output_file}")
+    # Boolean mask of which original points are on the frontier
+    # (safe even if duplicate params/accs exist)
+    pareto_set = set(zip(pareto_params.tolist(), pareto_accs.tolist()))
+    pareto_mask = np.array([(p, a) in pareto_set for p, a in zip(params, accuracies)], dtype=bool)
+
+    # --- Helper to draw the base plot, optionally with frontier-only annotations ---
+    def _draw(annotate_frontier_only: bool, out_path: str):
+        plt.figure(figsize=(10, 8))
+
+        plt.scatter(params, accuracies, alpha=0.7)
+        plt.plot(pareto_params, pareto_accs, "r--", label="Pareto Frontier", alpha=0.5)
+
+        if annotate_frontier_only:
+            frontier_idx = np.where(pareto_mask)[0]
+            for i in frontier_idx:
+                if names[i] not in ["MobileNetV2Exp_Halved_Thin3", "MobileNetV1_Halved_Thin2"]:
+                    plt.annotate(
+                        str(names[i]),
+                        (params[i], accuracies[i]),
+                        xytext=(5, 5),
+                        textcoords="offset points",
+                        fontsize=10,
+                    )
+
+
+        plt.xscale("log")
+        plt.xlim(200, 1e7)      # X axis: [200, 10^7]
+        plt.ylim(0.65, 0.9)   # Y axis: [0.5, 1.0]
+
+        plt.xlabel("Number of Weights (Parameters)")
+        plt.ylabel("Test Accuracy")
+        plt.title("Model Accuracy vs. Number of Weights")
+        plt.grid(True, which="both", ls="-", alpha=0.2)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=300)
+        plt.close()
+        print(f"Plot saved to {out_path}")
+
+    # --- Save 2 plots ---
+    base, ext = os.path.splitext(output_file)
+    if not ext:
+        ext = ".png"
+
+    plain_path = f"{base}_plain{ext}"
+    annotated_path = f"{base}_frontier_annotated{ext}"
+
+    _draw(annotate_frontier_only=False, out_path=plain_path)
+    _draw(annotate_frontier_only=True, out_path=annotated_path)
 
     # Sort results by distance (closest to ideal first)
     sorted_by_dist = sorted(results, key=lambda x: x['distance'])

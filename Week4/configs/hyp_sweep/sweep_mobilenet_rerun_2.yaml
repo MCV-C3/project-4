@@ -1,0 +1,47 @@
+project: Week4_MobileNet_HypSweep
+entity: c3-team4
+program: main.py
+method: grid
+metric:
+  name: best_test_accuracy
+  goal: maximize
+
+parameters:
+  # Base params
+  student_model.name:
+    value: "MobileNet"
+  student_model.params.version:
+    value: "v2"
+  student_model.params.v2_spec:
+    value: [[3, 2], [3, 1], [6, 2], [6, 1], [12, 2], [12, 1], [18, 2], [18, 1], [24, 2], [24, 1]]
+  distillation.alpha:
+    value: 1
+  distillation.temperature:
+    value: 4
+  distillation.teacher_path:
+    value: "/ghome/group04/C3/Benet/project-4/Week3/experiments/hyp_opt/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR.pth"
+  training.epochs:
+    value: 500
+  momentum:
+    value: 0.9
+
+  # Target 2: MobileNet_Distill_Batch_32_LR_0.001_Opt_Adam_Sched_CosineAnnealingLR
+  data.batch_size:
+    value: 32
+  training.learning_rate:
+    value: 0.001
+  optimizer:
+    value: 'Adam'
+  scheduler:
+    value: 'CosineAnnealingLR'
+
+  run_name_format:
+     value: "MobileNet_Distill_Batch_{data.batch_size}_LR_{training.learning_rate}_Opt_{optimizer}_Sched_{scheduler}"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--config"
+  - "configs/mobilenet/mobilenet_distill.yaml"
+  - ${args_no_hyphens}

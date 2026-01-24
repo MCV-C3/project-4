@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 import wandb
 try:
     from torchsummary import summary
@@ -74,6 +75,7 @@ class Run:
     best_epoch: int = 0          # Epoch corresponding to best test accuracy
     # Teacher model instance (optional, for distillation)
     teacher: Any = None
+    scheduler: Any = None        # Optional scheduler
 
 
 @dataclass
@@ -132,6 +134,33 @@ def distillation_loss_fn(student_logits, teacher_logits, labels, T, alpha, crite
 
     total_loss = alpha * kl_loss + (1 - alpha) * ce_loss
     return total_loss, kl_loss, ce_loss
+
+
+def _get_value_by_path(d: Dict[str, Any], path: str) -> Any:
+    """Helper to retrieve value from nested dict using dotted path."""
+    keys = path.split('.')
+    val = d
+    for k in keys:
+        if isinstance(val, dict) and k in val:
+            val = val[k]
+        else:
+            return "N/A"
+    return val
+
+
+def format_run_name(cfg: Dict[str, Any], fmt: str) -> str:
+    """Format run name string using values from config."""
+    # Find all placeholders like {data.batch_size}
+    import re
+    placeholders = re.findall(r'\{([^}]+)\}', fmt)
+
+    result = fmt
+    for p in placeholders:
+        val = _get_value_by_path(cfg, p)
+        # Replace {p} with str(val)
+        result = result.replace(f"{{{p}}}", str(val))
+
+    return result
 
 
 def build_teacher_model(cfg: Dict[str, Any], num_classes: int, device: Any) -> torch.nn.Module:
@@ -206,8 +235,52 @@ def setup_experiment(config_path: str) -> Exp:
                 wandb.config.update(
                     {'experiment_name': new_name}, allow_val_change=True)
 
+        # Handle 'rerun_config' for mixed-parameter sweeps
+        if 'rerun_config' in cfg:
+            print(">>> Applying rerun_config overrides:")
+            for key, val in cfg['rerun_config'].items():
+                if isinstance(val, dict) and key in cfg and isinstance(cfg[key], dict):
+                    def recursive_update(d, u):
+                        for k, v in u.items():
+                            if isinstance(v, dict) and k in d and isinstance(d[k], dict):
+                                recursive_update(d[k], v)
+                            else:
+                                d[k] = v
+                    recursive_update(cfg[key], val)
+                else:
+                    cfg[key] = val
+
+            # Re-trigger naming logic because experiment_name might have changed
+            model_key = 'model' if 'model' in cfg else 'student_model'
+            if model_key in cfg and 'experiment_name' in cfg[model_key].get('params', {}):
+                cfg['experiment_name'] = cfg[model_key]['params'].pop(
+                    'experiment_name')
+
+            # Also re-trigger distillation naming suffix if those changed
+            if 'distillation' in cfg:
+                alpha = cfg['distillation'].get('alpha')
+                temp = cfg['distillation'].get('temperature')
+                if alpha is not None and temp is not None:
+                    new_name = f"{cfg['experiment_name']}_alpha{alpha}_T{temp}"
+                    wandb.run.name = new_name
+                    cfg['experiment_name'] = new_name
+                    wandb.config.update(
+                        {'experiment_name': new_name}, allow_val_change=True)
+
+        # Apply run_name_format if present (Overrides everything else)
+        if 'run_name_format' in cfg:
+            try:
+                formatted_name = format_run_name(cfg, cfg['run_name_format'])
+                cfg['experiment_name'] = formatted_name
+                wandb.run.name = formatted_name
+                wandb.config.update(
+                    {'experiment_name': formatted_name}, allow_val_change=True)
+                print(f"Set Run Name to: {formatted_name}")
+            except Exception as e:
+                print(f"Error formatting run name: {e}")
+
         output_dir = os.path.join(
-            "results", "sweeps", wandb.run.sweep_id, cfg['experiment_name'])
+            "results", "sweeps", wandb.run.sweep_id, f"{cfg['experiment_name']}_{wandb.run.id}")
     else:
         # Standard run
         output_dir = os.path.join(
@@ -345,8 +418,46 @@ def setup_model(exp: Exp, data: Data) -> Run:
 
     # Training Setup
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(
-        model.parameters(), lr=cfg['training']['learning_rate'])
+
+    # Optimizer Logic
+    # Default to Adam if not in top-level
+    opt_name = cfg.get('optimizer', 'Adam')
+    if 'training' in cfg and 'optimizer' in cfg['training']:
+        opt_name = cfg['training']['optimizer']
+
+    lr = cfg['training']['learning_rate']
+    momentum = cfg.get('momentum', 0.9)
+    # momentum might be in training block depending on config structure
+    if 'training' in cfg and 'momentum' in cfg['training']:
+        momentum = cfg['training']['momentum']
+
+    print(f"Initializing Optimizer: {opt_name} (LR: {lr})")
+
+    if opt_name == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    elif opt_name == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+    elif opt_name == 'RMSprop':
+        optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=momentum)
+    else:
+        print(
+            f"Warning: Optimizer {opt_name} not explicitly handled, defaulting to Adam.")
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # Scheduler Logic
+    scheduler_name = cfg.get('scheduler', 'None')
+    scheduler = None
+    if scheduler_name == 'StepLR':
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    elif scheduler_name == 'CosineAnnealingLR':
+        scheduler = lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=cfg['training']['epochs'])
+    elif scheduler_name == 'ReduceLROnPlateau':
+        scheduler = lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='max', factor=0.1, patience=10)
+
+    if scheduler:
+        print(f"Using Scheduler: {scheduler_name}")
 
     # History containers (for plotting later)
     history = {'train_loss': [], 'train_acc': [],
@@ -367,12 +478,14 @@ def setup_model(exp: Exp, data: Data) -> Run:
         teacher=teacher,
         criterion=criterion,
         optimizer=optimizer,
+        # We attach scheduler to Run so we can step it
         history=history,
         params=params,
         flops=flops,
         latency=latency,
         best_test_acc=best_test_acc,
-        best_epoch=best_epoch
+        best_epoch=best_epoch,
+        scheduler=scheduler
     )
 
 
@@ -494,6 +607,17 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
 
         print(log_msg)
 
+        # Step Scheduler
+        if hasattr(run, 'scheduler') and run.scheduler:
+            if isinstance(run.scheduler, lr_scheduler.ReduceLROnPlateau):
+                run.scheduler.step(test_epoch_acc)
+            else:
+                run.scheduler.step()
+
+            # Log LR
+            current_lr = run.optimizer.param_groups[0]['lr']
+            wandb.log({"learning_rate": current_lr}, commit=False)
+
         # Save Best Model based on Test Accuracy
         if test_epoch_acc > best_test_acc:
             best_test_acc = test_epoch_acc
@@ -518,6 +642,10 @@ def train(exp: Exp, data: Data, run: Run) -> Run:
     # Update run object with best results
     run.best_test_acc = best_test_acc
     run.best_epoch = best_epoch
+
+    # Clean up scheduler if attached (though not strictly necessary)
+    if hasattr(run, 'scheduler'):
+        del run.scheduler
 
     return run
 

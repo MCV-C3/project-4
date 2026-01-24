@@ -1,0 +1,22 @@
+project: "Week4_Pruning_MobileNet"
+entity: "c3-team4"
+program: prune.py
+method: grid
+
+metric:
+  name: accuracy
+  goal: maximize
+
+parameters:
+  model_name:
+    values: ["MobileNetV2"]
+  amount:
+    values: [0.025, 0.05, 0.1, 0.2, 0.3]
+  method:
+    values: ["unstructured"]
+  iterative_steps:
+    values: [1, 3, 5, 10]
+  finetune_epochs:
+    values: [3, 5, 10, 20]
+  lr:
+    value: 0.0001

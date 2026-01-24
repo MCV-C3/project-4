@@ -1,0 +1,19 @@
+{
+    "experiment_name": "one_small_hidden_layer",
+    "wandb_project": "week3-ViT",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    
+     "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1",
+    
+    "img_size": 224,
+    "batch_size": 32,
+    "epochs": 50,
+    "lr": 0.0001,
+    "num_workers": 8,
+    
+    "head_config": {
+        "hidden_dims": [256],
+        "activation": "relu"
+    }
+}

@@ -1,0 +1,47 @@
+project: "Week4_BaseNet_Sweep"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy
+  goal: maximize
+
+parameters:
+  model.name: 
+    value: "ExperimentalCNN"
+  
+  model.params:
+    values:
+      - experiment_name: "VGG_Lite"
+        channels: [64, 64, 128, 128]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      - experiment_name: "Pyramid"
+        channels: [32, 64, 128, 256]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+      - experiment_name: "DeepNarrow"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_gap: false
+        use_bottleneck: false
+        use_attention: false
+        use_residual: false
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/baseline/baseline.yaml"

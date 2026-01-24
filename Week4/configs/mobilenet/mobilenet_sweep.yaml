@@ -1,0 +1,64 @@
+
+project: "Week4_MobileNet_Sweep"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy
+  goal: maximize
+
+parameters:
+  model.params:
+    values: 
+    # Full architecture
+      - {experiment_name: "MobileNetV1_Full", version: "v1", v1_spec: [[32, 2], [64, 1], [128, 2], [128, 1], [256, 2], [256, 1], [512, 2], [512, 1], [512, 1], [512, 1], [512, 1], [512, 1], [1024, 2], [1024, 1]]}
+      - {experiment_name: "MobileNetV2_Full", version: "v2", v2_spec: [[32, 2], [64, 1], [128, 2], [128, 1], [256, 2], [256, 1], [512, 2], [512, 1], [512, 1], [512, 1], [512, 1], [512, 1], [1024, 2], [1024, 1]]}
+      
+      - {experiment_name: "MobileNetV1_Full01", version: "v1", alpha: 0.1, v1_spec: [[32, 2], [64, 1], [128, 2], [128, 1], [256, 2], [256, 1], [512, 2], [512, 1], [512, 1], [512, 1], [512, 1], [512, 1], [1024, 2], [1024, 1]]}
+      - {experiment_name: "MobileNetV2_Full01", version: "v2", alpha: 0.1, v2_spec: [[32, 2], [64, 1], [128, 2], [128, 1], [256, 2], [256, 1], [512, 2], [512, 1], [512, 1], [512, 1], [512, 1], [512, 1], [1024, 2], [1024, 1]]}
+
+      - {experiment_name: "MobileNetV1_Full_Thin1", version: "v1", v1_spec: [[3, 2], [4, 1], [6, 2], [6, 1], [8, 2], [8, 1], [10, 2], [10, 1], [10, 1], [10, 1], [10, 1], [10, 1], [12, 2], [12, 1]]}
+      - {experiment_name: "MobileNetV2_Full_Thin1", version: "v2", v2_spec: [[3, 2], [4, 1], [6, 2], [6, 1], [8, 2], [8, 1], [10, 2], [10, 1], [10, 1], [10, 1], [10, 1], [10, 1], [12, 2], [12, 1]]}
+      - {experiment_name: "MobileNetV2Exp_Full_Thin1", version: "v2", v2_spec: [[3, 2], [4, 1, 3], [6, 2, 3], [6, 1, 3], [8, 2, 3], [8, 1, 3], [10, 2, 3], [10, 1, 3], [10, 1, 3], [10, 1, 3], [10, 1, 3], [10, 1, 3], [12, 2, 3], [12, 1, 3]]}
+      
+    # Halved architecture
+      - {experiment_name: "MobileNetV1_Halved_Thin1", version: "v1", v1_spec: [[3, 2], [6, 1], [12, 2], [24, 2], [30, 2], [50, 2]]}
+      - {experiment_name: "MobileNetV2_Halved_Thin1", version: "v2", v2_spec: [[3, 2], [6, 1], [12, 2], [24, 2], [30, 2], [50, 2]]}
+      - {experiment_name: "MobileNetV2Exp_Halved_Thin1", version: "v2", v2_spec: [[3, 2], [6, 1, 3], [12, 2, 3], [24, 2, 3], [30, 2, 3], [50, 2, 3]]}
+
+      - {experiment_name: "MobileNetV1_Halved_Thin2", version: "v1", v1_spec: [[3, 2], [3, 1], [6, 2], [12, 2], [18, 2], [24, 2]]}
+      - {experiment_name: "MobileNetV2_Halved_Thin2", version: "v2", v2_spec: [[3, 2], [3, 1], [6, 2], [12, 2], [18, 2], [24, 2]]}
+      - {experiment_name: "MobileNetV2Exp_Halved_Thin2", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [6, 2, 3], [12, 2, 3], [18, 2, 3], [24, 2, 3]]}
+
+      - {experiment_name: "MobileNetV1_Halved_Thin3", version: "v1", v1_spec: [[3, 2], [3, 1], [4, 2], [6, 2], [8, 2], [10, 2]]}
+      - {experiment_name: "MobileNetV2_Halved_Thin3", version: "v2", v2_spec: [[3, 2], [3, 1], [4, 2], [6, 2], [8, 2], [10, 2]]}
+      - {experiment_name: "MobileNetV2Exp_Halved_Thin3", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [4, 2, 3], [6, 2, 3], [8, 2, 3], [10, 2, 3]]}
+
+      - {experiment_name: "MobileNetV1_Halved_Thin4", version: "v1", v1_spec: [[3, 2], [3, 1], [4, 2], [5, 2], [6, 2], [7, 2]]}
+      - {experiment_name: "MobileNetV2_Halved_Thin4", version: "v2", v2_spec: [[3, 2], [3, 1], [4, 2], [5, 2], [6, 2], [7, 2]]}
+      - {experiment_name: "MobileNetV2Exp_Halved_Thin4", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [4, 2, 3], [5, 2, 3], [6, 2, 3], [7, 2, 3]]}
+
+    # Short architecture
+      - {experiment_name: "MobileNetV1_Short_Thin1", version: "v1", v1_spec: [[3, 2], [6, 1], [12, 2], [12, 1], [24, 2], [24, 1], [30, 2], [30, 1], [50, 2], [50, 1]]}
+      - {experiment_name: "MobileNetV2_Short_Thin1", version: "v2", v2_spec: [[3, 2], [6, 1], [12, 2], [12, 1], [24, 2], [24, 1], [30, 2], [30, 1], [50, 2], [50, 1]]}
+      - {experiment_name: "MobileNetV2Exp_Short_Thin1", version: "v2", v2_spec: [[3, 2], [6, 1, 3], [12, 2, 3], [12, 1, 3], [24, 2, 3], [24, 1, 3], [30, 2, 3], [30, 1, 3], [50, 2, 3], [50, 1, 3]]}
+
+      - {experiment_name: "MobileNetV1_Short_Thin2", version: "v1", v1_spec: [[3, 2], [3, 1], [6, 2], [6, 1], [12, 2], [12, 1], [18, 2], [18, 1], [24, 2], [24, 1]]}
+      - {experiment_name: "MobileNetV2_Short_Thin2", version: "v2", v2_spec: [[3, 2], [3, 1], [6, 2], [6, 1], [12, 2], [12, 1], [18, 2], [18, 1], [24, 2], [24, 1]]}
+      - {experiment_name: "MobileNetV2Exp_Short_Thin2", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [6, 2, 3], [6, 1, 3], [12, 2, 3], [12, 1, 3], [18, 2, 3], [18, 1, 3], [24, 2, 3], [24, 1, 3]]}
+
+      - {experiment_name: "MobileNetV1_Short_Thin3", version: "v1", v1_spec: [[3, 2], [3, 1], [4, 2], [4, 1], [6, 2], [6, 1], [8, 2], [8, 1], [10, 2], [10, 1]]}
+      - {experiment_name: "MobileNetV2_Short_Thin3", version: "v2", v2_spec: [[3, 2], [3, 1], [4, 2], [4, 1], [6, 2], [6, 1], [8, 2], [8, 1], [10, 2], [10, 1]]}
+      - {experiment_name: "MobileNetV2Exp_Short_Thin3", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [4, 2, 3], [4, 1, 3], [6, 2, 3], [6, 1, 3], [8, 2, 3], [8, 1, 3], [10, 2, 3], [10, 1, 3]]}
+
+      - {experiment_name: "MobileNetV1_Short_Thin4", version: "v1", v1_spec: [[3, 2], [3, 1], [4, 2], [4, 1], [5, 2], [5, 1], [6, 2], [6, 1], [7, 2], [7, 1]]}
+      - {experiment_name: "MobileNetV2_Short_Thin4", version: "v2", v2_spec: [[3, 2], [3, 1], [4, 2], [4, 1], [5, 2], [5, 1], [6, 2], [6, 1], [7, 2], [7, 1]]}
+      - {experiment_name: "MobileNetV2Exp_Short_Thin4", version: "v2", v2_spec: [[3, 2], [3, 1, 3], [4, 2, 3], [4, 1, 3], [5, 2, 3], [5, 1, 3], [6, 2, 3], [6, 1, 3], [7, 2, 3], [7, 1, 3]]}
+
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/mobilenet/mobilenet_base.yaml"

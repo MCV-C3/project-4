@@ -1,0 +1,99 @@
+{
+    "sweep_name": "layer_depth_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "lr": 0.001,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adam",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "scheduler_name": null,
+        "scheduler_params": {},
+        "img_size": 64,
+        "model_params": {
+            "dropout": 0.5,
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "L1_Medium",
+            "model_params": {
+                "hidden_layers": [
+                    512
+                ]
+            }
+        },
+        {
+            "name": "L1_Wide",
+            "model_params": {
+                "hidden_layers": [
+                    1024
+                ]
+            }
+        },
+        {
+            "name": "L2_Constant",
+            "model_params": {
+                "hidden_layers": [
+                    512,
+                    512
+                ]
+            }
+        },
+        {
+            "name": "L2_Pyramid",
+            "model_params": {
+                "hidden_layers": [
+                    512,
+                    128
+                ]
+            }
+        },
+        {
+            "name": "L2_InvPyramid",
+            "model_params": {
+                "hidden_layers": [
+                    128,
+                    512
+                ]
+            }
+        },
+        {
+            "name": "L3_Constant",
+            "model_params": {
+                "hidden_layers": [
+                    512,
+                    512,
+                    512
+                ]
+            }
+        },
+        {
+            "name": "L3_Pyramid",
+            "model_params": {
+                "hidden_layers": [
+                    1024,
+                    512,
+                    256
+                ]
+            }
+        },
+        {
+            "name": "L3_Diamond",
+            "model_params": {
+                "hidden_layers": [
+                    128,
+                    512,
+                    128
+                ]
+            }
+        }
+    ]
+}

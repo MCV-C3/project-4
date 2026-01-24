@@ -1,0 +1,24 @@
+__pycache__
+data/
+results/
+computed_descriptors*/
+wandb
+logs
+*.txt
+.vscode
+.DS_Store
+
+# Week 2
+Week2/experiments/
+# Week2/*.png
+# Week2/*.pth
+Week2/__pycache__/
+svm_experiments/
+Week2/best_models/
+Week2/plots_svm/
+Week2/results_best_svm/
+
+# Week3
+Week3/baseline_results
+Week3/experiments/
+Week3/data_augmentation_experiments

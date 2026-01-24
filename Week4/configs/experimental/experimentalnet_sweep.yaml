@@ -1,0 +1,125 @@
+project: "Week4_Experimental_Sweep"
+entity: "c3-team4"
+program: main.py
+method: grid
+metric:
+  name: final_val_accuracy 
+  goal: maximize
+
+parameters:
+  model.name:
+    value: "ExperimentalCNN"
+
+  model.params:
+    values:
+      # ==============================================
+      # ARCHITECTURE A: VGG-LITE [32, 64, 128, 128, 256]
+      # ==============================================
+      
+      # 1. VGG-Lite + GAP
+      - experiment_name: "A_VGG_GAP"
+        channels: [32, 64, 128, 128, 256]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: true          # <--- ACTIVE
+        use_bottleneck: false
+        use_attention: false
+
+      # 2. VGG-Lite + Bottleneck
+      - experiment_name: "A_VGG_Bottleneck"
+        channels: [32, 64, 128, 128, 256]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: true   # <--- ACTIVE
+        use_attention: false
+
+      # 3. VGG-Lite + Attention
+      - experiment_name: "A_VGG_Attn"
+        channels: [32, 64, 128, 128, 256]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: true    # <--- ACTIVE
+        att_type: "both"       # Full CBAM
+
+      # ==============================================
+      # ARCHITECTURE B: PYRAMID [32, 64, 128, 256, 512]
+      # ==============================================
+
+      # 4. Pyramid + GAP
+      - experiment_name: "B_Pyramid_GAP"
+        channels: [32, 64, 128, 256, 512]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: true          # <--- ACTIVE
+        use_bottleneck: false
+        use_attention: false
+
+      # 5. Pyramid + Bottleneck
+      - experiment_name: "B_Pyramid_Bottleneck"
+        channels: [32, 64, 128, 256, 512]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: true   # <--- ACTIVE
+        use_attention: false
+
+      # 6. Pyramid + Attention
+      - experiment_name: "B_Pyramid_Attn"
+        channels: [32, 64, 128, 256, 512]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: true    # <--- ACTIVE
+        att_type: "both"
+
+      # ==============================================
+      # ARCHITECTURE C: DEEP & NARROW [32, 32, 32, 32, 32, 32]
+      # ==============================================
+
+      # 7. DeepNarrow + GAP
+      - experiment_name: "C_DeepNarrow_GAP"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: true          # <--- ACTIVE
+        use_bottleneck: false
+        use_attention: false
+
+      # 8. DeepNarrow + Bottleneck
+      - experiment_name: "C_DeepNarrow_Bottleneck"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: true   # <--- ACTIVE
+        use_attention: false
+
+      # 9. DeepNarrow + Attention
+      - experiment_name: "C_DeepNarrow_Attn"
+        channels: [32, 32, 32, 32, 32, 32]
+        img_size: 256
+        dropout: 0.0
+        use_bn: true
+        use_gap: false
+        use_bottleneck: false
+        use_attention: true    # <--- ACTIVE
+        att_type: "both"
+        
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "configs/experimental/experimentalnet_base.yaml"

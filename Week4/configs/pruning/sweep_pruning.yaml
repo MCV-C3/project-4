@@ -1,0 +1,22 @@
+project: "Pruning"
+entity: "c3-team4"
+program: prune.py
+method: grid
+
+metric:
+  name: accuracy
+  goal: maximize
+
+parameters:
+  model_name:
+    values: ["MobileNetV2", "ShuffleNet"]
+  amount:
+    values: [0.025, 0.05, 0.1, 0.2, 0.3]
+  method:
+    values: ["unstructured"]
+  iterative_steps:
+    values: [1, 3, 5, 10]
+  finetune_epochs:
+    values: [1, 3, 5, 10]
+  lr:
+    value: 0.0001

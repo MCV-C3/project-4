@@ -1,0 +1,48 @@
+program: main.py
+method: grid
+name: Sweep_Distill_Reruns_Crashed
+project: Week4_ShuffleNet_Sweep
+entity: c3-team4
+
+metric:
+  name: best_test_accuracy
+  goal: maximize
+
+parameters:
+  config:
+    value: configs/shufflenet/shufflenet_distill.yaml
+    
+  rerun_config:
+    values:
+      # ShuffleNet_Nano_alpha1_T2
+      - student_model:
+          name: ShuffleNetMini
+          params:
+            stages_repeats: [2, 2, 2]
+            stages_out_channels: [12, 16, 24, 32, 32]
+            experiment_name: "ShuffleNet_Nano"
+        distillation:
+          alpha: 1.0  # Assuming "alpha1" starts for 1.0. If previous sweep was 0.9 max, this is a new run.
+          temperature: 2.0
+
+      # ShuffleNet_Atto_1x_alpha0.9_T8
+      - student_model:
+          name: ShuffleNetMini
+          params:
+            stages_repeats: [1, 1, 1]
+            stages_out_channels: [4, 4, 6, 8, 8]
+            experiment_name: "ShuffleNet_Atto_1x"
+        distillation:
+          alpha: 0.9
+          temperature: 8.0
+
+      # ShuffleNet_Femto_1x_alpha0.9_T6
+      - student_model:
+          name: ShuffleNetMini
+          params:
+            stages_repeats: [1, 1, 1]
+            stages_out_channels: [4, 8, 12, 16, 16]
+            experiment_name: "ShuffleNet_Femto_1x"
+        distillation:
+          alpha: 0.9
+          temperature: 6.0

@@ -1,0 +1,52 @@
+project: Week4_ShuffleNet_Sweep
+entity: c3-team4
+program: main.py
+method: grid
+metric:
+  name: best_test_accuracy
+  goal: maximize
+
+parameters:
+  # Fixed parameters
+  student_model.name:
+    value: "ShuffleNetMini"
+  student_model.params.stages_out_channels:
+    value: [4, 4, 6, 8, 8]
+  student_model.params.stages_repeats:
+    value: [2, 2, 2]
+  
+  distillation.alpha:
+    value: 0.3
+  distillation.temperature:
+    value: 6
+  distillation.teacher_path:
+    value: "/ghome/group04/C3/Benet/project-4/Week3/experiments/hyp_opt/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR/Batch_40_Epochs_100_LR_0.1_Opt_Adadelta_Momentum_0.4_Scheduler_CosineAnnealingLR.pth"
+
+  data.batch_size:
+    values: [16, 32, 64]
+  
+  training.epochs:
+    value: 500
+  
+  training.learning_rate:
+    values: [0.001, 0.01, 0.1]
+
+  optimizer:
+     values: ['SGD', 'Adam']
+  
+  momentum:
+     value: 0.9
+  
+  scheduler:
+     values: ['StepLR', 'CosineAnnealingLR']
+
+  run_name_format:
+     value: "ShuffleNet_Distill_Batch_{data.batch_size}_LR_{training.learning_rate}_Opt_{optimizer}_Sched_{scheduler}"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--config"
+  - "configs/shufflenet/shufflenet_distill.yaml"
+  - ${args_no_hyphens}

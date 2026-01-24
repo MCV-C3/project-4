@@ -159,3 +159,4 @@ def plot_grad_cam_samples(model, dataset, device, output_dir, num_samples=3):
 
         # Log to WandB
         wandb.log({f"grad_cam_{i}": wandb.Image(save_path, caption=f"Class: {dataset.classes[label]}")})
+

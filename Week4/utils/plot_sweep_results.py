@@ -40,6 +40,7 @@ def load_results(sweep_dir, pruning_mode=False, min_accuracy=0.6):
             accuracy = metrics.get('final_val_accuracy')
             if accuracy is None:
                 accuracy = metrics.get('final_test_accuracy')
+            efficiency = metrics.get('efficiency_score')
 
             if pruning_mode:
                 # Use parent directory name as experiment name
@@ -59,7 +60,8 @@ def load_results(sweep_dir, pruning_mode=False, min_accuracy=0.6):
                 res = {
                     'name': experiment_name,
                     'params': params,
-                    'accuracy': accuracy
+                    'accuracy': accuracy,
+                    'efficiency': efficiency
                 }
                 if pruning_mode:
                     res['non0_params'] = params

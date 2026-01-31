@@ -1,0 +1,29 @@
+experiment_name: "BaseNet_GAP_comparison"
+project: "Week4_BaseNet_Sweep"
+entity: "c3-team4"
+
+# Modular parameters
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: &IMG_SIZE 256
+  batch_size: 32
+  num_workers: 4
+  num_classes: 8
+
+model:
+  name: "BasicCNN"
+  params:
+    channels: [64, 128, 256]
+    kernel_size: 3
+    use_bn: false
+    dropout: 0.0
+    fc_units: []
+    img_size: *IMG_SIZE
+
+training:
+  epochs: 50
+  learning_rate: 0.001
+  optimizer: "adam"  
+  criterion: "crossentropy"
+  seed: 42

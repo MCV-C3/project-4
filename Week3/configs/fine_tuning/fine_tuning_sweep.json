@@ -1,0 +1,44 @@
+{
+    "sweep_name": "fine_tuning_depth_v3_large_extra_v2",
+    "baseline": {
+        "wandb_project": "week3-fine-tuning",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_large_train",
+
+        "img_size": 224,
+        "batch_size": 32,
+        "epochs": 50,
+        "lr": 0.001,
+        "num_workers": 8,
+        "unfreeze_depth": 0
+    },
+    "variations": [
+        {
+            "name": "depth_0_head_only",
+            "unfreeze_depth": 0,
+            "lr": 0.001
+        },
+        {
+            "name": "depth_1_layer4",
+            "unfreeze_depth": 1,
+            "lr": 0.0001
+        },
+        {
+            "name": "depth_2_layer3_4",
+            "unfreeze_depth": 2,
+            "lr": 0.0001
+        },
+        {
+            "name": "depth_3_layer2_3_4",
+            "unfreeze_depth": 3,
+            "lr": 0.0001
+        },
+        {
+            "name": "depth_4_full_model",
+            "unfreeze_depth": 4,
+            "lr": 0.00001
+        }
+    ]
+}

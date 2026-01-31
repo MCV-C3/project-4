@@ -1,0 +1,66 @@
+{
+    "sweep_name": "dropout_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 40,
+        "lr": 1e-3,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "optimizer_params": {
+            "weight_decay": 1e-4
+        },
+        "img_size": 64,
+        "model_params": {
+            "hidden_layers": [
+                1024,
+                512,
+                256,
+                128
+            ],
+            "dropout": 0.5,
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "Dropout_00",
+            "model_params": {
+                "dropout": 0.0
+            }
+        },
+        {
+            "name": "Dropout_01",
+            "model_params": {
+                "dropout": 0.1
+            }
+        },
+        {
+            "name": "Dropout_02",
+            "model_params": {
+                "dropout": 0.2
+            }
+        },
+        {
+            "name": "Dropout_03",
+            "model_params": {
+                "dropout": 0.3
+            }
+        },
+        {
+            "name": "Dropout_04",
+            "model_params": {
+                "dropout": 0.4
+            }
+        },
+        {
+            "name": "Dropout_05",
+            "model_params": {
+                "dropout": 0.5
+            }
+        }
+    ]
+}

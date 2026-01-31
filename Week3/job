@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -n 4
+#SBATCH --mem 24G
+#SBATCH -p mhigh
+#SBATCH --gres gpu:1
+#SBATCH -o logs/bow_%u_%j.out
+#SBATCH -e logs/bow_%u_%j.err
+
+python run_sweep.py --config configs/fine_tuning/fine_tuning_sweep.json

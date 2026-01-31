@@ -1,0 +1,57 @@
+{
+    "sweep_name": "img_size_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 200,
+        "early_stopping_patience": 15,
+        "early_stopping_delta": 0.0001,
+        "lr": 1e-3,
+        "num_workers": 4,
+        "wandb_project": "week2_sweeps",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "optimizer_params": {
+            "weight_decay": 0
+        },
+        "img_size": 64,
+        "model_params": {
+            "hidden_layers": [
+                1024,
+                512,
+                256,
+                128
+            ],
+            "dropout": 0.1,
+            "activation": "leaky_relu"
+        },
+        "scheduler_name": "cosineannealinglr",
+        "scheduler_params": {
+            "T_max": 80,
+            "eta_min": 1e-6
+        }
+    },
+    "variations": [
+        {
+            "name": "ImgSize_16",
+            "img_size": 16
+        },
+        {
+            "name": "ImgSize_32",
+            "img_size": 32
+        },
+        {
+            "name": "ImgSize_64",
+            "img_size": 64
+        },
+        {
+            "name": "ImgSize_128",
+            "img_size": 128
+        },
+        {
+            "name": "ImgSize_256",
+            "img_size": 256
+        }
+    ]
+}

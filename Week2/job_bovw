@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -n 4
+#SBATCH --mem 24G
+#SBATCH -p mhigh
+#SBATCH --gres gpu:1
+#SBATCH -o logs/bow_%u_%j.out
+#SBATCH -e logs/bow_%u_%j.err
+
+python bow_part2.py --config configs/bow_configs/config_bow.json

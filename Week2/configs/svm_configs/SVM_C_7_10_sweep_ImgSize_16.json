@@ -1,0 +1,48 @@
+{
+    "experiment_name": "SVM_C_7_10_sweep_ImgSize_16",
+    "model_path": "best_models/ImgSize_16/ImgSize_16.pth",
+    "train_config_path": "configs/config_best_ImgSize_16.json",
+    "layers_to_eval": [
+        0,
+        1,
+        2,
+        3,
+        "output",
+        "concat"
+    ],
+    "wandb_project": "week2-svm-params",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    "param_grid": [
+        {
+            "name": "linear_C7",
+            "kernel": "linear",
+            "C": 7
+        },
+        {
+            "name": "linear_C10",
+            "kernel": "linear",
+            "C": 10
+        },
+        {
+            "name": "rbf_C7",
+            "kernel": "rbf",
+            "C": 7
+        },
+        {
+            "name": "rbf_C10",
+            "kernel": "rbf",
+            "C": 10
+        },
+        {
+            "name": "hist_inter_C7",
+            "kernel": "histogram_intersection",
+            "C": 7
+        },
+        {
+            "name": "hist_inter_C10",
+            "kernel": "histogram_intersection",
+            "C": 10
+        }
+    ]
+}

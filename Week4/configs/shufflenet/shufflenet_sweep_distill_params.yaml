@@ -1,0 +1,23 @@
+program: main.py
+method: grid
+name: Sweep_Distill_Nano_Params
+project: Week4_ShuffleNet_Sweep
+entity: c3-team4
+
+metric:
+  name: best_test_accuracy
+  goal: maximize
+
+parameters:
+  config:
+    value: configs/shufflenet/shufflenet_distill.yaml
+  
+  # Distillation Hyperparameters
+  distillation.temperature:
+    values: [2.0, 4.0, 6.0, 8.0]
+  distillation.alpha:
+    values: [0.3, 0.5, 0.7, 0.9, 1]
+    
+  # Identify this run in the logs
+  experiment_name:
+    value: "Nano_Distill_Sweep"

@@ -1,0 +1,38 @@
+{
+    "experiment_name": "week3_data_augmentation",
+    "wandb_project": "week3-data-augmentation-2",
+    "wandb_entity": "c3-team4",
+    "wandb_mode": "online",
+    
+    "dataset_path": "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1",
+
+    "img_size": 224,
+    "batch_size": 32,
+    "epochs": 50,
+    "lr": 0.0001,
+    "num_workers": 8,
+    "unfreeze_depth": 2,
+
+    "variations": [
+        {
+            "name": "best_3_accum",
+            "data_augmentation": ["gaussian_noise", "horizontal_flip", "photometric_distort"],
+            "combination_mode": "all"
+        },
+        {
+            "name": "best_2_accum",
+            "data_augmentation": ["gaussian_noise", "photometric_distort"],
+            "combination_mode": "all"
+        },
+        {
+            "name": "best_3_choice",
+            "data_augmentation": ["gaussian_noise", "horizontal_flip", "photometric_distort"],
+            "combination_mode": "choice"
+        },
+        {
+            "name": "best_2_choice",
+            "data_augmentation": ["gaussian_noise", "photometric_distort"],
+            "combination_mode": "choice"
+        }
+    ]
+}

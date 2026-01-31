@@ -1,0 +1,23 @@
+project: "Week4_ShuffleNet"
+experiment_name: "ShuffleNetMini_Baseline"
+
+data:
+  train_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/train"
+  test_dir: "/ghome/group04/mcv/datasets/C3/2425/MIT_small_train_1/test"
+  img_size: 64
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.5
+
+model:
+  name: "ShuffleNetMini"
+  params:
+    stages_repeats: [2, 4, 2]
+    stages_out_channels: [24, 48, 96, 192, 512]
+    dropout: 0.0
+
+training:
+  epochs: 50
+  learning_rate: 0.001
+  seed: 42
+  optimizer: "adam"

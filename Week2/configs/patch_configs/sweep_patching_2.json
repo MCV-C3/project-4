@@ -1,0 +1,83 @@
+{
+    "sweep_name": "patching_aggregation_study",
+    "baseline": {
+        "dataset_path": "/ghome/group04/mcv/datasets/C3/2526/places_reduced",
+        "batch_size": 256,
+        "epochs": 80,
+        "num_workers": 4,
+        "wandb_project": "week2-patches-final",
+        "wandb_entity": "c3-team4",
+        "wandb_mode": "online",
+        "optimizer_name": "adamw",
+        "lr": 1e-3,
+        "optimizer_params": {
+            "weight_decay": 0
+        },
+        "data_augmentation": true,
+        "scheduler_name": "cosineannealinglr",
+        "scheduler_params": {
+            "T_max": 80,
+            "eta_min": 1e-6
+        },
+        "img_size": 224,
+        "patch_enable": true,
+        "evaluation_mode": "aggregated",
+        "model_params": {
+            "dropout": 0.1,
+            "hidden_layers": [
+                    1024,
+                    512,
+                    256,
+                    128
+                ],
+            "activation": "leaky_relu"
+        }
+    },
+    "variations": [
+        {
+            "name": "size_28_mean",
+            "aggregation": "mean",
+            "patch_size": 28
+        },
+        {
+            "name": "size_28_max",
+            "aggregation": "max",
+            "patch_size": 28
+        },
+        {
+            "name": "size_28_median",
+            "aggregation": "median",
+            "patch_size": 28
+        },
+        {
+            "name": "size_56_mean",
+            "aggregation": "mean",
+            "patch_size": 56
+        },
+        {
+            "name": "size_56_max",
+            "aggregation": "max",
+            "patch_size": 56
+        },
+        {
+            "name": "size_56_median",
+            "aggregation": "median",
+            "patch_size": 56
+        },
+        {
+            "name": "size_112_mean",
+            "aggregation": "mean",
+            "patch_size": 112
+        },
+        {
+            "name": "size_112_max",
+            "aggregation": "max",
+            "patch_size": 112
+        },
+        {
+            "name": "size_112_median",
+            "aggregation": "median",
+            "patch_size": 112
+        }
+    ]
+}

@@ -215,16 +215,19 @@ def plot_results(results, output_file, pruning_mode=False, baseline_result=None)
             writer = csv.writer(f)
             if pruning_mode:
                 writer.writerow(['Model Name', 'Params (Total)', 'non0 Params', 'Accuracy',
-                                'Distance to Ideal'])
+                                'Distance to Ideal', 'Efficiency'])
                 for r in sorted_by_acc:
                     writer.writerow(
-                        [r['name'], r.get('total_params', 'N/A'), r['params'], f"{r['accuracy']:.4f}", f"{r['distance']:.4f}"])
+                        [r['name'], r.get('total_params', 'N/A'), r['params'],
+                         f"{r['accuracy']:.4f}", f"{r['distance']:.4f}", 
+                         f"{r['efficiency']:.4f}"])
             else:
                 writer.writerow(['Model Name', 'Parameters', 'Accuracy',
-                                'Distance to Ideal (Acc=1, Params=0)'])
+                                'Distance to Ideal (Acc=1, Params=0)', 'Efficiency'])
                 for r in sorted_by_acc:
                     writer.writerow(
-                        [r['name'], r['params'], f"{r['accuracy']:.4f}", f"{r['distance']:.4f}"])
+                        [r['name'], r['params'], f"{r['accuracy']:.4f}", 
+                         f"{r['distance']:.4f}", f"{r['efficiency']:.4f}"])
 
         print(f"Comparison table saved to {csv_file}")
     except Exception as e:
@@ -234,18 +237,18 @@ def plot_results(results, output_file, pruning_mode=False, baseline_result=None)
     print("\nTop 5 Models by Accuracy:")
     if pruning_mode:
         print(
-            f"{'Model Name':<30} | {'Non0 Params':<12} | {'Accuracy':<10} | {'Distance':<10}")
-        print("-" * 75)
+            f"{'Model Name':<30} | {'Non0 Params':<12} | {'Accuracy':<10} | {'Distance':<10} | {'Efficiency':<10}")
+        print("-" * 88)
         for r in sorted_by_acc[:5]:
             print(
-                f"{r['name']:<30} | {r['params']:<12} | {r['accuracy']:.4f}     | {r['distance']:.4f}")
+                f"{r['name']:<30} | {r['params']:<12} | {r['accuracy']:.4f}     | {r['distance']:.4f}    | {r['efficiency']:.4f}")
     else:
         print(
-            f"{'Model Name':<25} | {'Params':<10} | {'Accuracy':<10} | {'Distance':<10}")
-        print("-" * 65)
+            f"{'Model Name':<25} | {'Params':<10} | {'Accuracy':<10} | {'Distance':<10} | {'Efficiency':<10}")
+        print("-" * 78)
         for r in sorted_by_acc[:5]:
             print(
-                f"{r['name']:<25} | {r['params']:<10} | {r['accuracy']:.4f}     | {r['distance']:.4f}")
+                f"{r['name']:<25} | {r['params']:<10} | {r['accuracy']:.4f}     | {r['distance']:.4f}    | {r['efficiency']:.4f}")
 
 
 def main():
